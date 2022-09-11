@@ -480,6 +480,7 @@ class SexOptovik(main.Functions):
 
     def start(self):
         ALL_MEDIA = {}
+        MEDIA_XLSX_COUNT_ITEMS = {}
         countries = ['Великобритания', 'США', 'Беларусь', 'Бельгия', 'Бразилия', 'Португалия', 'Германия', 'Голландия',
                      'Гонконг', 'Дания', 'Индия', 'Испания', 'Турция', 'Италия', 'Казахстан', 'Канада', 'Корея',
                      'Латвия', 'Малайзия', 'Нидерланды', 'Норвегия', 'Польша', 'Россия', 'Сенегал', 'Сингапур',
@@ -901,10 +902,11 @@ class SexOptovik(main.Functions):
                                                     path=path_100,
                                                     original_name=f'{count_items_100 - self.CONST_AMOUNT_OF_XLSX_ITEMS - 1}-{count_items_100}',
                                                          text_print=f'создан файл со {self.CONST_AMOUNT_OF_XLSX_ITEMS} товарами под номером {count_items_100//self.CONST_AMOUNT_OF_XLSX_ITEMS}')
-                                main.Functions.xlsx_photo_wb(self, dict_art_ph=ALL_MEDIA, path=path_100,
+                                main.Functions.xlsx_photo_wb(self, dict_art_ph=MEDIA_XLSX_COUNT_ITEMS, path=path_100,
                                                              seller_code=self.seller_code, name=f'file_photo_wb_{count_items_100 - self.CONST_AMOUNT_OF_XLSX_ITEMS + 1}-{count_items_100}',
                                                              text=f'файл с фотографиями номер {count_items_100//self.CONST_AMOUNT_OF_XLSX_ITEMS} в папке   {path_100}\n')
                                 self.parsed_items_100_items.clear()
+                                MEDIA_XLSX_COUNT_ITEMS.clear()
                                 self.parsed_items_100_items = {1: ['Номер карточки'], 2: ['Категория'], 3: ['Цвет'],
                                                                4: ['Бренд'], 5: ['Пол'], 6: ['Название'],
                                                                7: ['Артикул товара'], 8: ['Размер'], 9: ['Рос. размер'],
@@ -932,6 +934,7 @@ class SexOptovik(main.Functions):
                                                                }
 
                             ALL_MEDIA.setdefault(articul, photo_urls)
+                            MEDIA_XLSX_COUNT_ITEMS.setdefault(articul, photo_urls)
                             print(f'{abs_new_items}, ---     > {current_articul_wb_pattern}')
                     else:
                         ERRORS_ITEMS_BANNED_BRANDS.add(DATA[0])
@@ -942,7 +945,7 @@ class SexOptovik(main.Functions):
             main.Functions.save_data(self, self.parsed_items, seller_code=self.seller_code,
                                 path=f'./!parsed_full/{self.seller_code}', _print=False, _full=True,
                                      text_print='создан полный файл с товарами')
-            main.Functions.xlsx_photo_wb(self, dict_art_ph=ALL_MEDIA, path=f'./!parsed_full/{self.seller_code}', seller_code=self.seller_code,
+            main.Functions.xlsx_photo_wb(self, dict_art_ph=MEDIA_XLSX_COUNT_ITEMS, path=f'./!parsed_full/{self.seller_code}', seller_code=self.seller_code,
                                          text=f'файл с фотографиями в папке   ./!parsed_full/{self.seller_code}')
 
             main.Functions.save_data(self, self.parsed_items_100_items, seller_code=self.seller_code, path=path_100,

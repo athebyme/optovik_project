@@ -29,6 +29,7 @@ import urllib, requests
 import pandas as pd
 import shutil
 import io
+import glob
 
 all_providers = [
     'astkol',  # 0
@@ -122,24 +123,28 @@ class Functions:
         print(driver)
 
     @staticmethod
-    def clean_for_data(articular, seller_code):
+    def clean_for_data(articular, seller_code, shortArticular = True):
         temp = ''.join(articular)
         articular = ''.join(articular)
-        # set_of_post_codes = [
-        #     'Z1C1A0t-', 'W1C1Ayt', 'Z1C1L', 'Z1C1K', 'W1C1K', 'W1C1V', 'Z1C1A', 'W1C1L', 'W1C1A', 'Z1C1V'
-        # ]
-        set_of_post_codes = [
-            'UNCOMMENT PREV ARRAY IF CHECK Z1 NEEDED'
-        ]
+        original_code = seller_code
+        new_articular = current_code = ''
+        if shortArticular:
+            set_of_post_codes = [
+                'UNCOMMENT PREV ARRAY IF CHECK Z1 NEEDED'
+            ]
+        else:
+            set_of_post_codes = [
+                'Z1C1A0t-', 'W1C1Ayt', 'Z1C1L', 'Z1C1K', 'W1C1K', 'W1C1V', 'Z1C1A', 'W1C1L', 'W1C1A', 'Z1C1V'
+            ]
         check_any_code_in = []
         for i in set_of_post_codes:
             check_any_code_in.append(i in articular)
-
         if 'id' in articular:
             articular = articular[articular.find('-') + 1:]
             articular = articular[:articular.find('-')]
             if 4 + len(seller_code) + len(articular) != len(temp):
                 return False, temp
+            new_articular = f'id-{articular}-{seller_code}'
         elif any(check_any_code_in):
             for i in set_of_post_codes:
                 if i in articular:
@@ -155,11 +160,15 @@ class Functions:
 
             if len(articular) + c + len(seller_code) != len(temp):
                 return False, temp
+            new_articular = f'{original_code}{set_of_post_codes[check_any_code_in.index(True)]}{articular}'
         else:
             return False, temp
-        return True, articular
+        if shortArticular:
+            return True, articular
+        else:
+            return True, new_articular
 
-    def getData(self, path, seller_code, marketplace = 'wb'):
+    def getData(self, path, seller_code, marketplace='wb'):
         articuls = set()
         errors = set()
         enc = ''
@@ -386,9 +395,9 @@ class Functions:
             t = 'Пластик'
         return t
 
-    def xlsx_photo_wb(self, dict_art_ph, seller_code='', path='', text='', name = 'file_photo_wb'):
+    def xlsx_photo_wb(self, dict_art_ph, seller_code='', path='', text='', name='file_photo_wb'):
         xlsx = {1: ["Артикул товара"], 2: ["Медиафайлы"]}
-        for art,ph in dict_art_ph.items():
+        for art, ph in dict_art_ph.items():
             xlsx[1].append(art)
             xlsx[2].append(ph)
         Functions.save_data(self, data=xlsx, path=path, seller_code=seller_code, original_name=name,
@@ -597,13 +606,13 @@ class Functions:
             return 'Китай'
 
     def save_data(self, data, seller_code, path=os.getcwd(), original_name=str(round(time.time())), _print=True,
-                  _full=False, text_print = ''):
+                  _full=False, text_print=''):
         file = Path(path, f'{seller_code}_{original_name}.xlsx')
         try:
             os.remove(file)
         except BaseException:
             pass
-        #file = f'./!parsed_full/{seller_code}_{original_name}.xlsx'
+        # file = f'./!parsed_full/{seller_code}_{original_name}.xlsx'
         # if _full:
         #     try:
         #         shutil.rmtree(f'./!parsed_full/{seller_code}/')
@@ -726,7 +735,7 @@ class Functions:
                     while not done:
                         status, done = downloader.next_chunk()
                         print(f"Загружено с диска {file_name}: %d%%." % int(status.progress() * 100))
-                        COUNT_DOWLOADED +=1
+                        COUNT_DOWLOADED += 1
                     fh.seek(0)
 
                     with open(os.path.join(path_os_type, file_name), 'wb') as f:
@@ -954,6 +963,7 @@ class kema_parser(Functions):
 class Andrey(Functions):
     def __init__(self):
         pass
+
 
 class SexOptovik(Functions):
     cwd = os.getcwd()
@@ -1298,7 +1308,7 @@ class SexOptovik(Functions):
         CONST_COUNT_WORDS = 3
         data_lower = data.lower()
         getting_in_cat_wb = []
-        #getting_in_cat_wb = []
+        # getting_in_cat_wb = []
         cats_wb = set()
         extra = extra + '. ' + data_lower
         info = list(map(lambda data: data.strip(), data_lower.lower().split('#')))
@@ -1314,7 +1324,7 @@ class SexOptovik(Functions):
                 if 'белье' not in j:
                     for n in j.split():
                         if n in cats_wb:
-                            #getting_in_cat_wb.add(n)
+                            # getting_in_cat_wb.add(n)
                             getting_in_cat_wb.append(n)
                     t = list(map(lambda j: j + ' ', j.split()))
                     for p in saved:
@@ -1328,27 +1338,29 @@ class SexOptovik(Functions):
                     # all_var = list(map(lambda i: i, all_var))
                     for var in all_var:
                         if var in cats_wb:
-                            #getting_in_cat_wb.add(var)
+                            # getting_in_cat_wb.add(var)
                             getting_in_cat_wb.append(var)
                     saved = j.split().copy()
                 else:
                     t = data_lower.lower()
-                    ed = ['комплекты', 'бдсм', 'топы', 'лифы', 'бюстье', 'стрэпы', 'корсаж', ' маски', 'комбинезон', 'парик']
+                    ed = ['комплекты', 'бдсм', 'топы', 'лифы', 'бюстье', 'стрэпы', 'корсаж', ' маски', 'комбинезон',
+                          'парик']
                     ed_cats = ['комплекты эротик', 'комплекты бдсм', 'топы эротик', 'бюстгальтеры эротик',
-                               'бюстгальтеры эротик', 'стрэпы эротик', 'корсеты эротик', 'маски эротик', 'комбинезоны эротик', 'головные уборы эротик']
+                               'бюстгальтеры эротик', 'стрэпы эротик', 'корсеты эротик', 'маски эротик',
+                               'комбинезоны эротик', 'головные уборы эротик']
                     for o in range(len(ed)):
                         if ed[o] in t:
-                            #getting_in_cat_wb.add(ed_cats[o])
+                            # getting_in_cat_wb.add(ed_cats[o])
                             getting_in_cat_wb.append(ed_cats[o])
                     if 'трусики' in t or 'трусы' in t or 'стринги' in t or 'шортики' in t or 'шорты' in t:
-                        #getting_in_cat_wb.add('трусы эротик')
+                        # getting_in_cat_wb.add('трусы эротик')
                         getting_in_cat_wb.append('трусы эротик')
         if 'вибро' in data_lower:
             ed = ['зажим', 'яйца', 'трус', 'пуля']
             ed_cats = ['зажимы для сосков', 'виброяйца', 'вибротрусики', 'вибропули']
             for o in range(len(ed)):
                 if ed[o] in data_lower:
-                    #getting_in_cat_wb.add(ed_cats[o])
+                    # getting_in_cat_wb.add(ed_cats[o])
                     getting_in_cat_wb.append(ed_cats[o])
         ed = ['лубрикант', 'стек ', 'смазки для секс-игрушек', 'наборы и аксессуары', 'клиторальные стимуляторы',
               'костюмы', 'бдсм товары и фетиш > аксессуары', 'ошейник', 'простынь', 'наручник', 'кольцо эрекционное',
@@ -1361,7 +1373,8 @@ class SexOptovik(Functions):
               'вибромассажер', 'батарейки', 'гель для рук', 'клиторальная']
 
         ed_cats = ['лубриканты', 'стэки эротик', 'уходовые средства эротик', 'наборы игрушек для взрослых', 'вибраторы',
-                   'ролевые костюмы эротик', 'комплекты бдсм', 'ошейники эротик', 'простыни бдсм', 'наручники эротик', 'эрекционные кольца',
+                   'ролевые костюмы эротик', 'комплекты бдсм', 'ошейники эротик', 'простыни бдсм', 'наручники эротик',
+                   'эрекционные кольца',
                    'вагинальные тренажеры', 'трусы эротик', 'стрэпы эротик', 'стрэпы эротик', 'чулки эротик',
                    'пояса эротик',
                    'мастурбаторы мужские', 'пэстис эротик', 'пэстис эротик', 'массажные средства эротик',
@@ -1371,17 +1384,18 @@ class SexOptovik(Functions):
                    'уходовые средства эротив', 'уходовые средства эротик', 'массажные средства эротик',
                    'фаллоимитаторы', 'расширители гинекологические', 'средства с феромонами',
                    'эрекционные кольца', 'маски эротик', 'вакуумные помпы эротик',
-                   'вакуумно-волновые стимуляторы', 'уходовые средства эротик', 'вибратор', 'аксессуары для игрушек эротик',
+                   'вакуумно-волновые стимуляторы', 'уходовые средства эротик', 'вибратор',
+                   'аксессуары для игрушек эротик',
                    'уходовые средства эротик', 'электростимуляторы']
 
         if 'насадка' in extra:
-            if 'фаллоимитатора' in extra\
+            if 'фаллоимитатора' in extra \
                     or 'страпона' in extra:
                 getting_in_cat_wb.append('насадки на страпон')
-            if 'мастурбатор' in extra\
+            if 'мастурбатор' in extra \
                     or 'мастурбатора' in extra:
                 getting_in_cat_wb.append('насадки для мастурбатора')
-            if 'член' in extra\
+            if 'член' in extra \
                     or 'члена' in extra:
                 getting_in_cat_wb.append('насадки на член')
         for o in range(len(ed)):
@@ -1396,8 +1410,10 @@ class SexOptovik(Functions):
                 cat = cat.replace('бдсм', 'БДСМ')
             res.append(cat)
         if len(res) == 0:
-            if 'препарат' in extra: res.append('Возбуждающие препараты')
-            else: res.append('Наборы игрушек для взрослых')
+            if 'препарат' in extra:
+                res.append('Возбуждающие препараты')
+            else:
+                res.append('Наборы игрушек для взрослых')
         elif len(res) > 1 and 'Набор игрушек для взрослых' in res:
             res.remove('Набор игрушек для взрослых')
         return res[0], data.replace(' #', '.')
@@ -1424,6 +1440,7 @@ class SexOptovik(Functions):
 
     def start(self):
         ALL_MEDIA = {}
+        MEDIA_COUNT_XLSX = {}
         countries = ['Англия', 'США', 'Беларусь', 'Бельгия', 'Бразилия', 'Португалия', 'Германия', 'Голландия',
                      'Гонконг', 'Дания', 'Индия', 'Испания', 'Турция', 'Италия', 'Казахстан', 'Канада', 'Корея',
                      'Латвия', 'Малайзия', 'Нидерланды', 'Норвегия', 'Польша', 'Россия', 'Сенегал', 'Сингапур',
@@ -1439,7 +1456,8 @@ class SexOptovik(Functions):
 
         choose = -1
         while choose < 0 or choose > 2:
-            choose = int(input(f'Загрузить новые данные ?\n 1 - Да\n0 - Нет\n2  -  Только обновить wb_{self.seller_code}.xslx\n'))
+            choose = int(input(
+                f'Загрузить новые данные ?\n 1 - Да\n0 - Нет\n2  -  Только обновить wb_{self.seller_code}.xslx\n'))
         if choose == 1:
             cwd = self.cwd
             path = Path(cwd, 'pool', 'SexOptovik')
@@ -1483,7 +1501,7 @@ class SexOptovik(Functions):
                 elif self.seller_code == '1299':
                     google_id.append('163cgrAFCKd01CGG1FhhT70ibF8d9F7B3')
                     google_name.append('wb_1299.xlsx')
-                self.google_driver(google_ids=google_id,file_names = google_name,
+                self.google_driver(google_ids=google_id, file_names=google_name,
                                    path_os_type='./pool/SexOptovik/google_downloaded')
 
         else:
@@ -1739,14 +1757,13 @@ class SexOptovik(Functions):
                             while len(name) >= 40:
                                 name = name[:name.rfind(' ')]
                             while temp[len(temp) - 1] in PREDLOGS_RU_LANG:
-                                name = name[:name.rfind(temp[len(temp)-1])]
+                                name = name[:name.rfind(temp[len(temp) - 1])]
                                 temp = list(map(''.join, name.split(' ')))
                             # check_name = list(map(str,name.split()))
                             # last = check_name[len(check_name)-1]
                             # if last in 'для с без' and len(last)==1 and not(last.isdigit()):
                             #     check_name.pop(len(check_name)-1)
                             #     name = ''.join(check_name)
-
 
                             check_brand = brand.upper()
                             if check_brand != brand or '(' in brand or ')' in brand or brand == '':
@@ -1828,6 +1845,7 @@ class SexOptovik(Functions):
                                 Functions.save_data(self, self.parsed_items_100_items, seller_code=self.seller_code,
                                                     path=path_100,
                                                     original_name=f'{count_items_100 - self.CONST_AMOUNT_OF_XLSX_ITEMS - 1}-{count_items_100}')
+
                                 self.parsed_items_100_items.clear()
                                 self.parsed_items_100_items = {1: ['Номер карточки'], 2: ['Категория'], 3: ['Цвет'],
                                                                4: ['Бренд'], 5: ['Пол'], 6: ['Название'],
@@ -1854,8 +1872,9 @@ class SexOptovik(Functions):
                                                                40: ['Комплектация'],
                                                                41: ['Количество предметов в упаковке'], 42: ['Упаковка']
                                                                }
-
+                                MEDIA_COUNT_XLSX.clear()
                             ALL_MEDIA.setdefault(articul, photo_urls)
+                            MEDIA_COUNT_XLSX.setdefault(articul, photo_urls)
                             print(f'{abs_new_items}, ---     > {current_articul_wb_pattern}')
                     else:
                         ERRORS_ITEMS_BANNED_BRANDS.add(DATA[0])
@@ -1918,7 +1937,6 @@ class SexOptovik(Functions):
         # p 'Доделать !!!!'
 
 
-
 class OzonParser(Functions):
     seller_code = ''
 
@@ -1940,17 +1958,18 @@ class OzonParser(Functions):
             except OSError:
                 input(f'Закройте файлы в папке {path} и нажмите любую клавишу')
         download_id = ['1pp0GDS6TF6WaT8us6NhjYvbBdc3mAQcC', '1SnIBrCVFNwlA2Uti6_gzw54BjlMVeHF5']
-        name_ids = ['cats_oz.csv', 'banned_brands.txt']
+        name_ids = ['cats_oz.txt.csv', 'banned_brands.txt']
         if seller_code == 1277:
             download_id.append('1dovcWj7ZivWN635m8LJOrcRGkcUKMkJl')
             name_ids.append('oz-1277.csv')
         Functions.google_driver(google_ids=download_id,
                                 file_names=name_ids,
                                 path_os_type='./pool/SexOptovik/Ozon')
+
     @staticmethod
     def initialize_cats():
         cats = []
-        path = './pool/SexOptovik/Ozon/cats_oz.csv'
+        path = './pool/SexOptovik/Ozon/cats_oz.txt.csv'
         try:
             with open(path, 'r', encoding='utf-8') as categories_file:
                 for line in categories_file:
@@ -2007,6 +2026,7 @@ class OzonParser(Functions):
         print('Готово !')
         input()
 
+
 def get_provider():
     print('Введите цифру соответсвующую необходимому вам поставщику')
     for i in range(len(all_providers)):
@@ -2044,12 +2064,18 @@ if __name__ == '__main__':
     # START
     seller_code = int(input('Введите код продавца: '))
 
-    #OzonParser = OzonParser(f'{seller_code}')
-    #OzonParser.start_parsing()
+    # OzonParser = OzonParser(f'{seller_code}')
+    # OzonParser.start_parsing()
 
     # input()
 
+    import Ozon_Changer_ID
+
+    oz_ch = Ozon_Changer_ID.OzonChangerID(seller_code)
+    oz_ch.start()
+
     import SexOptovik_wb
+
     optovik = SexOptovik_wb.SexOptovik(f'{seller_code}')
     optovik.start()
 
