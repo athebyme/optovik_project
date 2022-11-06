@@ -154,10 +154,20 @@ class SexOptovik(main.Functions):
 
                 for i in range(len(eds)):
                     if eds[i] in it and res.setdefault(eds_en[i]) is None:
+                        if ' и ' in it:
+                            it = it.replace(' и ', '-')
+                        if it.count('(') == it.count(')') and it.count('(') > 0:
+                            f_t = it.find('(')
+                            if f_t > 8:
+                                it = it[:f_t]
+                        if 'м до ' in it:
+                            it = it.replace('м до ', '-')
                         r = re.sub("[^0-9,-/]", "", it).replace(',', '.').replace('/', '-').lstrip().rstrip()
                         if r == '':
                             res[eds_en[i]] = 'универсальный (растягивается)'
                             break
+                        #if r[len(r)-1:] == '.':
+                        #    r = r[:len(r)-1]
                         if '-' in r:
                             r_lst = list(map(str, r.split('-')))
                             try:
@@ -179,6 +189,8 @@ class SexOptovik(main.Functions):
                         else:
                             if r == '.':
                                 r = 'универсальный (растягивается)'
+                            elif r[len(r)-1:] == '.':
+                                r = r[:len(r)-1]
                             else:
                                 # print([r,data])
                                 if r[:1] == '.':
@@ -297,57 +309,62 @@ class SexOptovik(main.Functions):
         return text
 
     def download_from_google(self, type, path=os.getcwd()):
-        success = False
-        while not success:
-            url_blacklist_items_wb = [
-                'https://drive.google.com/file/d/1bMMyC75qNwpHD61CfaM7gU2zT-dR012t/view?usp=sharing',
-                'blacklist_brands_wb']
-            url_problem_items_wb_id = [
-                'https://drive.google.com/file/d/1dE7VrYH_CDfKFTofDzhjbc8Cp7zZ8ios/view?usp=sharing',
-                'problem_items_wb_id']
-            url_wb_cats = ['https://drive.google.com/file/d/1zqL6RS35CqQaeZMMAnKHFugmImbJi4t8/view?usp=sharing',
-                           'wb_cats']
-            url_wb_xlsx_1277 = ['https://drive.google.com/file/d/1SVeUg1-AWWZyTgg9RGkwitOSIDT4Ixul/view?usp=sharing',
-                                f'wb_1277.xlsx']
-            url_wb_xlsx_1299 = ['https://docs.google.com/file/d/163cgrAFCKd01CGG1FhhT70ibF8d9F7B3/view?usp=sharing',
-                                'wb_1299.xlsx']
+            success = False
+            while not success:
+                url_blacklist_items_wb = [
+                    'https://drive.google.com/file/d/1bMMyC75qNwpHD61CfaM7gU2zT-dR012t/view?usp=sharing',
+                    'blacklist_brands_wb']
+                url_problem_items_wb_id = [
+                    'https://drive.google.com/file/d/1dE7VrYH_CDfKFTofDzhjbc8Cp7zZ8ios/view?usp=sharing',
+                    'problem_items_wb_id']
+                url_wb_cats = ['https://drive.google.com/file/d/1zqL6RS35CqQaeZMMAnKHFugmImbJi4t8/view?usp=sharing',
+                               'wb_cats']
+                url_wb_xlsx_1277 = ['https://drive.google.com/file/d/1SVeUg1-AWWZyTgg9RGkwitOSIDT4Ixul/view?usp=sharing',
+                                    'wb_1277.xlsx']
+                url_wb_xlsx_1299 = ['https://docs.google.com/file/d/163cgrAFCKd01CGG1FhhT70ibF8d9F7B3/view?usp=sharing',
+                                    'wb_1299.xlsx']
+                url_wb_xlsx_1364 = ['https://docs.google.com/file/d/1c8eaqFkxmYOPsshXwvMP9z5HaXliS-hs/view?usp=sharing',
+                                    'wb_1364.xlsx']
 
-            download_available = [url_blacklist_items_wb, url_problem_items_wb_id, url_wb_cats, url_wb_xlsx_1277]
+                download_available = [url_blacklist_items_wb, url_problem_items_wb_id, url_wb_cats, url_wb_xlsx_1277, url_wb_xlsx_1299, url_wb_xlsx_1364]
 
-            google_ids = ['1bMMyC75qNwpHD61CfaM7gU2zT-dR012t', '1dE7VrYH_CDfKFTofDzhjbc8Cp7zZ8ios',
-                          '1zqL6RS35CqQaeZMMAnKHFugmImbJi4t8']
-            google_names = ['blacklist_brands_wb.txt', 'problem_items_wb_id.txt', 'wb_cats.txt']
+                google_ids = ['1bMMyC75qNwpHD61CfaM7gU2zT-dR012t', '1dE7VrYH_CDfKFTofDzhjbc8Cp7zZ8ios',
+                              '1zqL6RS35CqQaeZMMAnKHFugmImbJi4t8']
+                google_names = ['blacklist_brands_wb.txt', 'problem_items_wb_id.txt', 'wb_cats.txt']
 
-            if self.seller_code == '1277':
-                google_ids.append('1SVeUg1-AWWZyTgg9RGkwitOSIDT4Ixul')
-                google_names.append('wb_1277.xlsx')
-            elif self.seller_code == '1299':
-                google_ids.append('163cgrAFCKd01CGG1FhhT70ibF8d9F7B3')
-                google_names.append('wb_1299.xlsx')
+                if self.seller_code == '1277':
+                    google_ids.append('1SVeUg1-AWWZyTgg9RGkwitOSIDT4Ixul')
+                    google_names.append('wb_1277.xlsx')
+                elif self.seller_code == '1299':
+                    google_ids.append('163cgrAFCKd01CGG1FhhT70ibF8d9F7B3')
+                    google_names.append('wb_1299.xlsx')
+                elif self.seller_code == '1366':
+                    google_ids.append('1c8eaqFkxmYOPsshXwvMP9z5HaXliS-hs')
+                    google_names.append('wb_1366.xlsx')
 
-            path2 = Path(path, 'pool', 'SexOptovik', 'google_downloaded')
-            try:
-                shutil.rmtree(path2)
-                os.rmdir(path2)
-            except OSError:
-                os.mkdir(path2)
-            try:
-                if type == 0:
-                    main.Functions.google_driver(google_ids, google_names, './pool/SexOptovik/google_downloaded')
-                else:
-                    main.Functions.google_driver([google_ids[type]], [google_names[type]],
-                                            './pool/SexOptovik/google_downloaded')
-                success = True
-            except google.auth.exceptions.RefreshError:
-                print('Токен устарел. Необходимо заново авторизироваться в аккаунт.')
-                if os.path.isfile('./token_drive_v3.pickle'):
-                    os.remove('./token_drive_v3.pickle')
-                    print('Устаревший токен успешно удален. Необходимо пройти авторищацию заново.')
-                    time.sleep(3)
-                else:
-                    print('Файл токена не найден в текущем местоположении. Выберите его самостоятельно')
-                    path_token = main.Functions.getFolderFile(0, item=' файл токена google')
-                    os.remove(path_token)
+                path2 = Path(path, 'pool', 'SexOptovik', 'google_downloaded')
+                try:
+                    shutil.rmtree(path2)
+                    os.rmdir(path2)
+                except OSError:
+                    os.mkdir(path2)
+                try:
+                    if type == 0:
+                        main.Functions.google_driver(google_ids, google_names, './pool/SexOptovik/google_downloaded')
+                    else:
+                        main.Functions.google_driver([google_ids[type]], [google_names[type]],
+                                                './pool/SexOptovik/google_downloaded')
+                    success = True
+                except google.auth.exceptions.RefreshError:
+                    print('Токен устарел. Необходимо заново авторизироваться в аккаунт.')
+                    if os.path.isfile('./token_drive_v3.pickle'):
+                        os.remove('./token_drive_v3.pickle')
+                        print('Устаревший токен успешно удален. Необходимо пройти авторищацию заново.')
+                        time.sleep(3)
+                    else:
+                        print('Файл токена не найден в текущем местоположении. Выберите его самостоятельно')
+                        path_token = main.Functions.getFolderFile(0, item=' файл токена google')
+                        os.remove(path_token)
 
     @staticmethod
     def init_category(data, cats_wb, extra):
@@ -478,10 +495,20 @@ class SexOptovik(main.Functions):
                 time.sleep(5)
                 sys.exit(0)
 
+    def init_stocks(self):
+        set_stocks = set()
+        with open(r"C:\Users\Anton\Documents\stock.csv", 'r+', encoding='utf-8') as stock:
+            for line in stock:
+                articul = self.clean_for_data(shortArticular=True, seller_code='1366',
+                                         articular=line.rstrip().replace(';', ''))
+                if articul[0]:
+                    set_stocks.add(articul[1])
+        return set_stocks
+
+
     def start(self):
         ALL_MEDIA = {}
-        MEDIA_XLSX_COUNT_ITEMS = {}
-        countries = ['Великобритания', 'США', 'Беларусь', 'Бельгия', 'Бразилия', 'Португалия', 'Германия', 'Голландия',
+        countries = ['Англия', 'США', 'Беларусь', 'Бельгия', 'Бразилия', 'Португалия', 'Германия', 'Голландия',
                      'Гонконг', 'Дания', 'Индия', 'Испания', 'Турция', 'Италия', 'Казахстан', 'Канада', 'Корея',
                      'Латвия', 'Малайзия', 'Нидерланды', 'Норвегия', 'Польша', 'Россия', 'Сенегал', 'Сингапур',
                      'Мексика', 'Тайланд', 'Тибет', 'Тибет', 'Украина', 'Франция', 'Швейцария', 'Швеция', 'Шотландия',
@@ -493,11 +520,11 @@ class SexOptovik(main.Functions):
         self.CONST_AMOUNT_OF_XLSX_ITEMS = amount_of_items_in_file
 
         # загрузить файлы txt
-        if not os.path.exists('./SexOptovik'):
-            os.mkdir('./SexOptovik')
+
         choose = -1
         while choose < 0 or choose > 2:
-            choose = int(input(f'Загрузить новые данные ?\n 1 - Да\n0 - Нет\n2  -  Только обновить wb_{self.seller_code}.xslx\n'))
+            choose = int(
+                input(f'Загрузить новые данные ?\n 1 - Да\n0 - Нет\n2  -  Только обновить wb_{self.seller_code}.xslx\n'))
         if choose == 1:
             cwd = self.cwd
             path = Path(cwd, 'pool', 'SexOptovik')
@@ -532,7 +559,7 @@ class SexOptovik(main.Functions):
             try:
                 path = f'./pool/SexOptovik/google_downloaded/wb_{self.seller_code}.xlsx'
                 os.remove(path)
-            except OSError or FileNotFoundError:
+            except OSError:
                 google_id = []
                 google_name = []
                 if self.seller_code == '1277':
@@ -541,7 +568,10 @@ class SexOptovik(main.Functions):
                 elif self.seller_code == '1299':
                     google_id.append('163cgrAFCKd01CGG1FhhT70ibF8d9F7B3')
                     google_name.append('wb_1299.xlsx')
-                self.google_driver(google_ids=google_id,file_names = google_name,
+                elif self.seller_code == '1366':
+                    google_id.append('1c8eaqFkxmYOPsshXwvMP9z5HaXliS-hs')
+                    google_name.append('wb-1366.xlsx')
+                self.google_driver(google_ids=google_id, file_names=google_name,
                                    path_os_type='./pool/SexOptovik/google_downloaded')
 
         else:
@@ -562,15 +592,18 @@ class SexOptovik(main.Functions):
 
         print('Считаю новые товары...')
         set_of_data_artics, errors_set_data_artics = main.Functions.getData(self, PATH_GOOGLE_XLSX,
-                                                                       seller_code=self.seller_code)
+                                                                            seller_code=self.seller_code)
+        #set_of_data_artics = set()
+        #errors_set_data_artics = set()
+
         blacklist_brands = main.Functions.uploadFromFile(self,
-                                                    file_path='./pool/SexOptovik/google_downloaded/blacklist_brands_wb.txt',
-                                                    isSet=True)
+                                                         file_path='./pool/SexOptovik/google_downloaded/blacklist_brands_wb.txt',
+                                                         isSet=True)
         blacklist_brands = list(map(lambda item: item.rstrip().lower(), blacklist_brands))
 
         PROBLEM_ITEMS = main.Functions.uploadFromFile(self,
-                                                 file_path='./pool/SexOptovik/google_downloaded/problem_items_wb_id.txt',
-                                                 isSet=True)
+                                                      file_path='./pool/SexOptovik/google_downloaded/problem_items_wb_id.txt',
+                                                      isSet=True)
         PROBLEM_ITEMS = list(map(lambda item: item.rstrip().lower(), PROBLEM_ITEMS))
         abs_new_items = 0
         self.current_cats_wb = self.upload_cats()
@@ -599,14 +632,13 @@ class SexOptovik(main.Functions):
 
         success = False
         _path = './!parsed_full'
-        if not os.path.exists(_path):
-            os.mkdir(_path)
-        _path += f'/{self.seller_code}'
         while not success:
             try:
                 shutil.rmtree(_path)
                 os.rmdir(_path)
             except FileNotFoundError:
+                os.mkdir(_path)
+                _path += f'/{self.seller_code}'
                 os.mkdir(_path)
                 success = True
             except PermissionError:
@@ -617,20 +649,18 @@ class SexOptovik(main.Functions):
             for line in file:
                 line = line.replace('&quot;', '')
                 DATA = list(map(lambda line: line.replace('"', ''), line.split(';')))
-                # if DATA[0] == '27966':
-                #     input()
                 current_articul_wb_pattern = {}
                 # отсев существующих артикулов
                 if DATA[0] not in set_of_data_artics:
                     if DATA[4].lower() not in blacklist_brands:
                         curr_row_data = {''}
-                        abs_new_items += 1
+
                         # ---                ЗАПОЛНЕНИЕ ШАБЛОНА WB
                         articul = f'id-{DATA[0]}-{self.seller_code}'
                         if articul not in PROBLEM_ITEMS:
                             # id-18474-1277
-                            # if count_items_100 == 5179:
-                            #     input()
+                            if articul == "id-26530-1277":
+                                input()
                             model = name = description = category = extra_info = brand = country = osobennost_model = \
                                 vibro = elite = sex = colour = complect = count_items = sostav = photo_str = \
                                 material = batteries = opis = check = volume = ed = \
@@ -657,8 +687,6 @@ class SexOptovik(main.Functions):
                             if '-' in country:
                                 country = country[:country.find('-')]
                             osobennost_model = DATA[7][:1].upper() + DATA[7][1:]  # Особенность модели
-                            if country.lower() == 'англия':
-                                country = 'Великобритания'
                             # + Особенность модели
                             if 'с вибрацией' in extra_info:
                                 opis += 'С вибрацией. '
@@ -682,6 +710,9 @@ class SexOptovik(main.Functions):
                                 sostav = DATA[12]
                             else:
                                 sostav = DATA[2]
+
+                            opis += DATA[10]
+
                             photo_str = DATA[13]
                             photo_urls = list(map(lambda
                                                       photo_str: f'http://sexoptovik.ru/_project/user_images/prods_res/{DATA[0]}/{DATA[0]}_{photo_str}_{self.size_img}.jpg',
@@ -705,21 +736,22 @@ class SexOptovik(main.Functions):
                                 opis += 'Батареек нет в комплекте. '
                             elif 'входят' in DATA[16]:
                                 batteries = 'Батарейки в комплекте. '
-                                opis += batteries
+                                opis += f'{batteries}. '
                             price = 99999  # Розничная цена
 
                             try:
                                 b = list(map(int, DATA[16]))
                                 pass
                             except ValueError:
-                                opis += DATA[16]
+                                opis += f'{DATA[16]}. '
 
                             check = DATA[2].lower() + '; ' + DATA[3].lower()
                             clothe = ['трусики' in check, 'трусы' in check, 'боди' in check, ' топ ' in check,
                                       'костюм' in check, ' лиф' in check, 'стреп' in check, 'стрэп' in check,
                                       'трус' in check
                                       ]
-
+                            if articul == 'id-21460-1277':
+                                print()
                             size_all = size_ru = volume = ''
                             if 'Белье' in description or 'БДСМ' in description or any(clothe):
                                 size = self.parse_sizes(DATA[10], 'clothe')
@@ -738,51 +770,57 @@ class SexOptovik(main.Functions):
                                     pass
                                 ed = size.get('ed')
                             else:
+
                                 size = self.parse_sizes(DATA[10], 'all')
 
                                 length_it = size.get('length')  # Длина
-                                if length_it is None:
+                                if length_it is None or length_it == '':
                                     length_it = length_up = ''
                                 elif length_it == 'универсальный (растягивается)':
-                                    length_it = length_up = 'универсальный (растягивается)'
+                                    length_it = 'универсальный (растягивается)'
                                 else:
+                                    length_it = float(length_it)
                                     length_up = round(length_it + length_it * 0.1, 3)
 
                                 weight = size.get('weight')  # Вес (г)
-                                if weight is None:
+                                if weight is None or weight == '':
                                     weight = weight_bez_up_kg = ''
                                 else:
                                     weight_bez_up_kg = int(weight) / 1000
                                 width_it = size.get('width')  # Ширина предмета + ширина упаковки
-                                if width_it is None:
+                                if width_it is None or width_it == '':
                                     width_it = width_up = ''
                                 elif width_it == 'универсальный (растягивается)':
-                                    width_it = width_up = 'универсальный (растягивается)'
+                                    width_it = 'универсальный (растягивается)'
                                 else:
+                                    width_it = float(width_it)
                                     width_up = round(width_it + width_it * 0.1, 3)
 
                                 height_it = size.get('height')  # Высота предмета + высота упаковки
-                                if height_it is None:
+                                if height_it is None or height_it == '':
                                     height_it = height_up = ''
                                 elif height_it == 'универсальный (растягивается)':
-                                    height_it = height_up = 'универсальный (растягивается)'
+                                    height_it = 'универсальный (растягивается)'
                                 else:
+                                    height_it = float(height_it)
                                     height_up = round(height_it + height_it * 0.1, 3)
 
                                 diameter_it = size.get('diameter')  # Диаметр
-                                if diameter_it is None:
+                                if diameter_it is None or diameter_it == '':
                                     diameter_it = diameter_up = ''
                                 elif diameter_it == 'универсальный (растягивается)':
-                                    diameter_it = diameter_up = 'универсальный (растягивается)'
+                                    diameter_it ='универсальный (растягивается)'
                                 else:
+                                    diameter_it = float(diameter_it)
                                     diameter_up = round(diameter_it + diameter_it * 0.1, 3)
 
                                 depth_it = size.get('depth')  # Глубина
-                                if depth_it is None:
+                                if depth_it is None or depth_it == '':
                                     depth_it = depth_up = ''
                                 elif depth_it == 'универсальный (растягивается)':
-                                    depth_it = depth_up == 'универсальный (растягивается)'
+                                    depth_it = 'универсальный (растягивается)'
                                 else:
+                                    depth_it = float(depth_it)
                                     depth_up = round(depth_it + depth_it * 0.1, 3)
                             if len(photo_urls) != 0:
                                 for z in range(len(photo_urls) - 1):
@@ -790,43 +828,40 @@ class SexOptovik(main.Functions):
                                 photo_wb += photo_urls[len(photo_urls) - 1]
 
                             #   ПРОВЕРКИ
-                            PREDLOGS_RU_LANG = {'c', 'в', 'у', 'о', 'к', 'от', 'до', 'на', 'по', 'со', 'из', 'над',
+                            PREDLOGS_RU_LANG = {'с', 'в', 'у', 'о', 'к', 'от', 'до', 'на', 'по', 'со', 'из', 'над',
                                                 'под', 'при', 'про', 'без', 'ради', 'близ', 'перед', 'около', 'через',
                                                 'вдоль', 'после',
                                                 'кроме', 'сквозь', 'вроде', 'вследствие', 'благодаря', 'вопреки',
                                                 'согласно',
-                                                'навстречу', 'об', '(', ')', 'и', ',', 'за', 'c'
+                                                'навстречу', 'об', '(', ')', 'и', ',', 'за', 'c', 'для'
                                                 }
 
                             temp = list(map(''.join, name.split()))
                             while len(name) >= 40:
                                 name = name[:name.rfind(' ')]
+                            temp = list(map(''.join, name.split()))
                             while temp[len(temp) - 1] in PREDLOGS_RU_LANG:
-                                name = name[:name.rfind(temp[len(temp)-1])]
+                                name = name[:name.rfind(' ')].rstrip()
                                 temp = list(map(''.join, name.split(' ')))
+
+                            if len(brand + name) + 1 <= 40:
+                                name += f' {brand}'
 
                             if name.count('(') > name.count(')'):
                                 name = name.replace('(', '')
                             elif name.count('(') < name.count(')'):
                                 name = name.replace(')', '')
-                            # check_name = list(map(str,name.split()))
-                            # last = check_name[len(check_name)-1]
-                            # if last in 'для с без' and len(last)==1 and not(last.isdigit()):
-                            #     check_name.pop(len(check_name)-1)
-                            #     name = ''.join(check_name)
 
 
                             check_brand = brand.upper()
                             if check_brand != brand or '(' in brand or ')' in brand or brand == '':
                                 if self.seller_code == '1277':
                                     brand = 'Lasciva'
+                                elif self.seller_code == '1366':
+                                    brand = 'Piter Anal'
                                 elif self.seller_code == '1299':
-                                    brand = 'Wisteria'
-                                opis += f'Ретейлер: {brand}. '
-                            else:
-                                opis += f'Бренд: {brand}. '
-                            if '28172' in articul:
-                                pass
+                                    brand == 'Wisteria'
+                            opis += f'Ресейллер: {brand}. '
 
                             if photo_wb == '':
                                 for i in DATA:
@@ -853,7 +888,7 @@ class SexOptovik(main.Functions):
                                             break
                                     except ValueError:
                                         pass
-                            ALL_MEDIA[articul] = photo_wb
+
                             flag = False
                             for datas in DATA:
                                 for i in range(len(countries)):
@@ -872,26 +907,75 @@ class SexOptovik(main.Functions):
                                 if ed_cats[hj] in category and size_ru == '':
                                     size_ru, size_all = '44-46', 'M'
 
-                            # opis = f'{name}. Модель: {model}. Цвет: {colour} Особенности модели: {osobennost_model}. {description}.' \
-                            #       f' Бренд: {brand}. {extra_info}. {for_opis}' \
-                            #       f'. Наличие батареек в компекте: {batteries}. Материал: {material}. {DATA[10]}'
                             opis = opis.replace('. .', '. ').replace(';', '.').replace('..', '. ')
+                            if opis[0] == '.':
+                                opis = opis[1:]
+                            check_size_it = [weight, length_it, width_it, height_it, depth_it]
+                            check_size_up = [weight_bez_up_kg, length_up, width_up, height_up, depth_up]
+                            check_size_v = [300, 20, 10, 15, 18]
+                            for i in range(len(check_size_it)):
+                                if check_size_it[i] == '':
+                                    check_size_it[i] = check_size_v[i]
+                                if check_size_up[i] == '':
+                                    check_size_up[i] = round(check_size_v[i] + check_size_v[i] * 0.1, 2)
+                            weight, weight_bez_up_kg = weight, weight_bez_up_kg
+                            try:
+                                length_it, length_up = check_size_it[1], check_size_up[1]
+                            except ValueError:
+                                length_up = 22
+                            try:
+                                width_it, width_up = check_size_it[2], check_size_up[2]
+                            except ValueError:
+                                width_up = 12
+                            try:
+                                height_it, height_up = check_size_it[3], check_size_up[3]
+                            except height_up:
+                                height_up = 16.5
+                            try:
+                                depth_it, depth_up = check_size_it[4], check_size_up[4]
+                            except ValueError:
+                                depth_up = 19.6
+                            if category == 'Презервативы':
+                                continue
+
+                            if country == 'Англия' or country == 'Соединенное королевство':
+                                country = 'Великобритания'
+                            if sex == 'для женщин':
+                                sex = 'Женский'
+                            elif sex == 'для мужчин':
+                                sex = 'Мужской'
+                            else:
+                                sex = 'Женский'
+
+                            vibr_type = ''
+                            if elite != '' and vibro != '':
+                                vibr_type = elite + '. ' + vibro
+                            elif elite != '':
+                                vibr_type = elite
+                            elif vibro != '':
+                                vibr_type = vibro
+                            abs_new_items += 1
+
                             current_articul_wb_pattern = {2: category, 3: '', 4: brand, 5: sex, 6: name,
                                                           7: articul, 8: size_all, 9: size_ru,
                                                           10: '',
                                                           11: price, 12: sostav, 13: photo_wb, 14: opis, 15: country,
                                                           16: osobennost_model, 17: osobennost_model, 18: material,
-                                                          19: batteries, 20: f'{volume} {ed}', 21: volume,
+                                                          19: batteries, 20: volume, 21: volume,
                                                           22: f'{volume} {ed}',
                                                           23: width_it, 24: width_up, 25: length_up, 26: length_it,
                                                           27: length_it, 28: height_it, 29: height_up,
                                                           30: depth_it, 31: depth_up, 32: diameter_up, 33: diameter_it,
-                                                          34: elite + '. ' + vibro, 35: weight_bez_up_kg, 36: weight,
+                                                          34: vibr_type, 35: weight_bez_up_kg, 36: weight,
                                                           37: weight, 38: weight_bez_up_kg, 39: weight, 40: complect,
                                                           41: count_items, 42: 'Непрозрачная анонимная упаковка'
                                                           }
 
                             count_items_100 += 1
+
+
+
+
                             for k, v in current_articul_wb_pattern.items():
                                 self.parsed_items[k].append(v)
                                 self.parsed_items_100_items[k].append(v)
@@ -899,14 +983,9 @@ class SexOptovik(main.Functions):
                                 for kz in range(1, self.CONST_AMOUNT_OF_XLSX_ITEMS + 1):
                                     self.parsed_items_100_items[1].append(kz)
                                 main.Functions.save_data(self, self.parsed_items_100_items, seller_code=self.seller_code,
-                                                    path=path_100,
-                                                    original_name=f'{count_items_100 - self.CONST_AMOUNT_OF_XLSX_ITEMS - 1}-{count_items_100}',
-                                                         text_print=f'создан файл со {self.CONST_AMOUNT_OF_XLSX_ITEMS} товарами под номером {count_items_100//self.CONST_AMOUNT_OF_XLSX_ITEMS}')
-                                main.Functions.xlsx_photo_wb(self, dict_art_ph=MEDIA_XLSX_COUNT_ITEMS, path=path_100,
-                                                             seller_code=self.seller_code, name=f'file_photo_wb_{count_items_100 - self.CONST_AMOUNT_OF_XLSX_ITEMS + 1}-{count_items_100}',
-                                                             text=f'файл с фотографиями номер {count_items_100//self.CONST_AMOUNT_OF_XLSX_ITEMS} в папке   {path_100}\n')
+                                                         path=path_100,
+                                                         original_name=f'{count_items_100 - self.CONST_AMOUNT_OF_XLSX_ITEMS - 1}-{count_items_100}')
                                 self.parsed_items_100_items.clear()
-                                MEDIA_XLSX_COUNT_ITEMS.clear()
                                 self.parsed_items_100_items = {1: ['Номер карточки'], 2: ['Категория'], 3: ['Цвет'],
                                                                4: ['Бренд'], 5: ['Пол'], 6: ['Название'],
                                                                7: ['Артикул товара'], 8: ['Размер'], 9: ['Рос. размер'],
@@ -934,7 +1013,6 @@ class SexOptovik(main.Functions):
                                                                }
 
                             ALL_MEDIA.setdefault(articul, photo_urls)
-                            MEDIA_XLSX_COUNT_ITEMS.setdefault(articul, photo_urls)
                             print(f'{abs_new_items}, ---     > {current_articul_wb_pattern}')
                     else:
                         ERRORS_ITEMS_BANNED_BRANDS.add(DATA[0])
@@ -943,19 +1021,9 @@ class SexOptovik(main.Functions):
             for i in range(1, len(self.parsed_items_100_items[2])):
                 self.parsed_items_100_items[1].append(i)
             main.Functions.save_data(self, self.parsed_items, seller_code=self.seller_code,
-                                path=f'./!parsed_full/{self.seller_code}', _print=False, _full=True,
-                                     text_print='создан полный файл с товарами')
-            main.Functions.xlsx_photo_wb(self, dict_art_ph=MEDIA_XLSX_COUNT_ITEMS, path=f'./!parsed_full/{self.seller_code}', seller_code=self.seller_code,
-                                         text=f'файл с фотографиями в папке   ./!parsed_full/{self.seller_code}')
-
+                                     path=f'./!parsed_full/{self.seller_code}', _print=False, _full=True)
             main.Functions.save_data(self, self.parsed_items_100_items, seller_code=self.seller_code, path=path_100,
-                                original_name=f'{count_items_100}-END', text_print='созданы последние товары')
-            main.Functions.xlsx_photo_wb(self, dict_art_ph=ALL_MEDIA, path=path_100,
-                                         seller_code=self.seller_code,
-                                         name=f'file_photo_wb_{count_items_100 - self.CONST_AMOUNT_OF_XLSX_ITEMS - 1}-END',
-                                         text=f'файл с фотографиями номер {count_items_100 // self.CONST_AMOUNT_OF_XLSX_ITEMS} в папке   {path_100}\n')
-
-
+                                     original_name=f'{count_items_100}-END')
             # COUNT_ITEMS_ALLPRODINFO = abs_new_items
             # K = 10 ** 10
             # while K >= 0:
@@ -971,7 +1039,9 @@ class SexOptovik(main.Functions):
 
         input('Обработка товаров с сайта Sex Optovik завершена.')
 
-    # -------------------------------------------------------------------
+        # -------------------------------------------------------------------
+
+
     wb_pattern = {1: ['Номер карточки'], 2: ['Категория'], 3: ['Цвет'], 4: ['Бренд'], 5: ['Пол'],
                   6: ['Название'], 7: ['Артикул товара'], 8: ['Размер'],
                   9: ['Рос. размер'], 10: ['Баркод товара'], 11: ['Цена'], 12: ['Состав'], 13: ['Описание'],
@@ -992,10 +1062,11 @@ class SexOptovik(main.Functions):
                   45: ['Ширина предмета'], 46: ['Ширина упаковки (см)'], 47: ['Медиафайлы'], 48: ['Страна производства']
                   }
 
+
     def __init__(self, seller_code, preview='SexOptovik'):
         self.preview = preview
         main.Functions.showText('Sex Optovik')
-        self.seller_code = seller_code
+        self.seller_code = str(seller_code)
 
         # print(f'\n--------------------------------------------'
         #      f'\nSexOptovik\n\ncwd:  {self.cwd}')

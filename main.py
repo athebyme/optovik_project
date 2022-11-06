@@ -13,6 +13,8 @@ from datetime import date
 from pyfiglet import Figlet
 
 import SexOptovik_wb
+import Kema
+
 from Google import Create_Service
 from googleapiclient.http import MediaIoBaseDownload
 from itertools import product
@@ -37,16 +39,6 @@ all_providers = [
     'andrey'  # 2
     'sex_optovik'
 ]
-
-
-@dataclass
-class MainData():
-    provider: str
-    seller_code: str
-    excelFiles_path: str
-    imgsFiles_path: str
-    barcodeFile_path: str
-
 
 class Functions:
     provider = ''
@@ -123,7 +115,7 @@ class Functions:
         print(driver)
 
     @staticmethod
-    def clean_for_data(articular, seller_code, shortArticular = True):
+    def clean_for_data(articular, seller_code, shortArticular=True):
         temp = ''.join(articular)
         articular = ''.join(articular)
         original_code = seller_code
@@ -168,18 +160,19 @@ class Functions:
         else:
             return True, new_articular
 
-    def getData(self, path, seller_code, marketplace='wb'):
+    def getData(self, path, seller_code, marketplace='wb', _row = 3):
         articuls = set()
         errors = set()
         enc = ''
         try:
             with open(path, 'r') as f:
-                t = f.readline()
+                f.readline()
                 for lines in f:
                     if marketplace == 'wb':
-                        articular = self.clean_for_data(list(map(str, lines.split(';')))[3], seller_code)
+                        articular = self.clean_for_data(list(map(str, lines.split(';')))[_row], seller_code)
                     elif marketplace == 'oz':
-                        articular = self.clean_for_data(list(map(str, lines.split(';')[0])), seller_code)
+                        _row = 0
+                        articular = self.clean_for_data(list(map(str, lines.split(';')[_row])), seller_code)
                     if articular[0]:
                         articuls.add(articular[1])
                     else:
@@ -194,7 +187,7 @@ class Functions:
             xlsx = openpyxl.load_workbook(path)
             sheet = xlsx.active
             for row in sheet.iter_rows(2, sheet.max_row):
-                articular = self.clean_for_data(row[3].value, seller_code=seller_code)
+                articular = self.clean_for_data(row[_row].value, seller_code=seller_code)
                 if articular[0]:
                     articuls.add(articular[1])
                 else:
@@ -1381,7 +1374,7 @@ class SexOptovik(Functions):
                    'лубриканты', 'лубриканты', 'свечи эротик', 'свечи эротик', 'насадки на член',
                    'насадки для вибраторов', 'насадки на мастурбатор', 'лубриканты', 'лубриканты',
                    'уходовые средства эротик', 'презервативы', 'презервативы', 'фаллоимитаторы',
-                   'уходовые средства эротив', 'уходовые средства эротик', 'массажные средства эротик',
+                   'уходовые средства эротик', 'уходовые средства эротик', 'массажные средства эротик',
                    'фаллоимитаторы', 'расширители гинекологические', 'средства с феромонами',
                    'эрекционные кольца', 'маски эротик', 'вакуумные помпы эротик',
                    'вакуумно-волновые стимуляторы', 'уходовые средства эротик', 'вибратор',
@@ -1417,6 +1410,7 @@ class SexOptovik(Functions):
         elif len(res) > 1 and 'Набор игрушек для взрослых' in res:
             res.remove('Набор игрушек для взрослых')
         return res[0], data.replace(' #', '.')
+
 
     def upload_cats(self):
         status_file = os.path.isfile('./pool/SexOptovik/google_downloaded/wb_cats.txt')
@@ -1571,8 +1565,10 @@ class SexOptovik(Functions):
             except PermissionError:
                 input('Пожалуйста, закройте все открытые файлы из папки на нажмите любую клавишу.\n')
         count_items_100 = 0
+
         with open(file_path) as file:
             ERRORS_ITEMS_BANNED_BRANDS = set()
+
             for line in file:
                 line = line.replace('&quot;', '')
                 DATA = list(map(lambda line: line.replace('"', ''), line.split(';')))
@@ -1585,6 +1581,7 @@ class SexOptovik(Functions):
                         # ---                ЗАПОЛНЕНИЕ ШАБЛОНА WB
                         articul = f'id-{DATA[0]}-{self.seller_code}'
                         if articul not in PROBLEM_ITEMS:
+
                             # id-18474-1277
                             # if count_items_100 == 5179:
                             #     input()
@@ -2055,29 +2052,61 @@ def setup_providers(choosed_providers):
     return r
 
 
+CONST_AV_CODES = {'1277', '1299', '1366'}
+
+@staticmethod
+def create_all_folders():
+    if not Path.exists(Path(os.getcwd(), 'pool')):
+        os.mkdir(Path(os.getcwd(), 'pool'))
+    return 0
+def checked_value():
+    VALUES = {1: 'sexopt', 2: 'kema', 3: 'astkol'}
+    success = False
+    print(f'Выберите необходимый скрипт:\n {VALUES}')
+    try:
+        while not success:
+            res = int(input())
+            if res < 1 or res > 3:
+                print(f'Введите значение из списка. {VALUES}')
+            success = True
+    except ValueError:
+        print('[!] Вы ввели не число')
+    return res
+
 if __name__ == '__main__':
 
     cur_time = time.time()
-    if not Path.exists(Path(os.getcwd(), 'pool')):
-        os.mkdir(Path(os.getcwd(), 'pool'))
+    create_all_folders()
 
-    # START
     seller_code = int(input('Введите код продавца: '))
+    while str(seller_code) not in CONST_AV_CODES:
+        print(f'! Вы ввели недоступный код поставщика.\nПодключенные продавцы: {CONST_AV_CODES}\n')
+        seller_code = int(input('Введите код продавца: '))
+
+    val = checked_value()
+
+    if val == 1:
+        optovik = SexOptovik_wb.SexOptovik(f'{seller_code}')
+        optovik.start()
+    elif val == 2:
+        kema = kema_parser('1366')
+        a = Functions.workWithExcel(1)
+        all_media_files = kema.start_parser()
+    elif val == 3:
+        pass
+
 
     # OzonParser = OzonParser(f'{seller_code}')
     # OzonParser.start_parsing()
 
     # input()
 
-    import Ozon_Changer_ID
+    # import Ozon_Changer_ID
 
-    oz_ch = Ozon_Changer_ID.OzonChangerID(seller_code)
-    oz_ch.start()
+    # oz_ch = Ozon_Changer_ID.OzonChangerID(seller_code)
+    # oz_ch.start()
 
-    import SexOptovik_wb
 
-    optovik = SexOptovik_wb.SexOptovik(f'{seller_code}')
-    optovik.start()
 
     # выбор поставщика
     func_code = get_provider()
@@ -2086,17 +2115,15 @@ if __name__ == '__main__':
 
     input()
 
-    parser = Functions()
-    # parser.wildberries_site()
 
     barc = Functions.getFolderFile(0, ' штрихкоды ')
-    barcodes = parser.uploadBarcodes(barc).copy()
+    barcodes = Functions.uploadBarcodes(barc).copy()
 
     data_path = Functions.getFolderFile(0, ' уже добавленные товары ')
     data_set = Functions.getData(data_path, seller_code='1277')
 
-    kema = kema_parser('1277', barcodes, data_set)
-    a = parser.workWithExcel(1)
+    kema = kema_parser('1366', barcodes, data_set)
+    a = Functions.workWithExcel(1)
     all_media_files = kema.start_parser()
 
     ch = input('Вы хотите загрузить фото-медиа файлы?\nДа/Нет\n').lower()

@@ -20,7 +20,7 @@ def get_info_by_ip(ip='127.0.0.1'):
             '[Lon]': response.get('lon'),
             '[Lat]': response.get('lat')
         }
-        for k,v in data.items():
+        for k, v in data.items():
             print(f'{k}: {v}')
 
         area = folium.Map(location=[response.get('lat'),response.get('lon')])

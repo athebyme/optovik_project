@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import io
+import math
 
 import google.auth
 from googleapiclient.discovery import build
@@ -603,20 +604,12 @@ import os
 import re
 
 
-@staticmethod
-def for_sizes_parse(array_4XL):
-    size = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '4XL']
-    size_ru = array_4XL.copy()
-    dict = {}
-    for i in range(len(size)):
-        dict.setdefault(size[i], size_ru[i])
-    return dict
-
 # a = ''
 # a = float(10)
 # print(a)
 
 import pathlib as Path
+
 # path = './shrih/Список штрихкодов (4).xlsx'
 # #with ope n
 # with open(path,encoding='ansi') as f:
@@ -951,5 +944,109 @@ import pathlib as Path
 # b = 'Мастурбатор с вибрацией, подогревом и'
 # print(init_category(b,cats_wb))
 
-a = {'id-11668-1168-1', 'id-6535-1168'}
-print('11668' in a)
+# a = {'id-11668-1168-1', 'id-6535-1168'}
+# print('11668' in a)
+#
+# b = 4.4
+# r = round(b + b*0.1,3)
+# print(r)
+
+# @staticmethod
+# def clean_for_data(articular, seller_code, shortArticular=True):
+#     temp = ''.join(articular)
+#     articular = ''.join(articular)
+#     original_code = seller_code
+#     new_articular = current_code = ''
+#     if shortArticular:
+#         set_of_post_codes = [
+#             'UNCOMMENT PREV ARRAY IF CHECK Z1 NEEDED'
+#         ]
+#     else:
+#         set_of_post_codes = [
+#             'Z1C1A0t-', 'W1C1Ayt', 'Z1C1L', 'Z1C1K', 'W1C1K', 'W1C1V', 'Z1C1A', 'W1C1L', 'W1C1A', 'Z1C1V'
+#         ]
+#     check_any_code_in = []
+#     for i in set_of_post_codes:
+#         check_any_code_in.append(i in articular)
+#     if 'id' in articular:
+#         articular = articular[articular.find('-') + 1:]
+#         articular = articular[:articular.find('-')]
+#         if 4 + len(seller_code) + len(articular) != len(temp):
+#             return False, temp
+#         new_articular = f'id-{articular}-{seller_code}'
+#     elif any(check_any_code_in):
+#         for i in set_of_post_codes:
+#             if i in articular:
+#                 current_code = i
+#                 break
+#         ind = articular.find(current_code)
+#         if len(articular[:ind]) != len(seller_code):
+#             seller_code = articular[:ind]
+#         articular = articular[ind:]
+#
+#         c = len(current_code)
+#         articular = articular.replace(current_code, '')
+#
+#         if len(articular) + c + len(seller_code) != len(temp):
+#             return False, temp
+#         new_articular = f'{original_code}{set_of_post_codes[check_any_code_in.index(True)]}{articular}'
+#     else:
+#         return False, temp
+#     if shortArticular:
+#         return True, articular
+#     else:
+#         return True, new_articular
+# def init_stocks():
+#     set_stocks = set()
+#     with open(r"C:\Users\Anton\Documents\stock.csv", 'r+', encoding='utf-8') as stock:
+#         for line in stock:
+#             articul = clean_for_data(shortArticular=True, seller_code='1366', articular=line.rstrip().replace(';',''))
+#             if articul[0]:
+#                 set_stocks.add(articul[1])
+#     return set_stocks
+# print(len(init_stocks()))
+def check_v(s):
+    try:
+        t = (list(map(int, s.split())))
+        t[0] = t[0]
+        for i in t:
+            a = int(i)
+            if len(str(a)) > 2:
+                return 0,''
+        photo_str = s
+        return 1, photo_str
+    except Exception as ex:
+        return 0, ''
+def re_init_photo():
+    import main
+    a = main.Functions()
+    dict = {}
+    saver = {1: ['Артикул товара'], 2: ['Медиафайлы']}
+    path = main.Functions.getFolderFile(0, item='товары без фото')
+    set_a = a.getData(path=path, seller_code='1366', _row=6)[0]
+    with open('./SexOptovik/all_prod_info.csv', 'r+') as f:
+        for lines in f:
+            s = ''
+            DATA = list(map(lambda line: line.replace('"', ''), lines.split(';')))
+            if DATA[0] in set_a:
+                v = [0, '']
+                data_row = 13
+                while not v[0]:
+                    v = check_v(DATA[data_row])
+                    data_row += 1
+                photo_urls = list(map(lambda
+                                          photo_str: f'http://sexoptovik.ru/_project/user_images/prods_res/{DATA[0]}/{DATA[0]}_{photo_str}_{650}.jpg',
+                                      v[1].split()))
+                for i in range(len(photo_urls) - 1):
+                    s += f'{photo_urls[i]}; '
+                s += photo_urls[len(photo_urls) - 1]
+                saver[1].append(f'id-{DATA[0]}-1366')
+                saver[2].append(s)
+        a.save_data(saver, seller_code='1366', path=r"C:\Users\Anton\Desktop")
+
+def getFib(n):
+    if n < 2: return n;
+    return getFib(n-1) + getFib(n-2)
+
+if __name__ == '__main__':
+   re_init_photo()
