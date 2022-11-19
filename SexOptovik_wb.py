@@ -28,7 +28,7 @@ class SexOptovik(main.Functions):
                     22: ['Объем средства'], 23: ['Ширина предмета'], 24: ['Ширина упаковки'], 25: ['Длина (см)'],
                     26: ['Длина секс игрушки'],
                     27: ['Рабочая длина секс игрушки'], 28: ['Высота предмета'], 29: ['Высота упаковки'],
-                    30: ['Глубина предмета'], 31: ['Глубина упаковки'], 32: ['Диаметр'],
+                    30: ['Длина предмета'], 31: ['Длина упаковки'], 32: ['Диаметр'],
                     33: ['Диаметр секс игрушки'], 34: ['Вид вибратора'], 35: ['Вес без упаковки'], 36: ['Вес(г)'],
                     37: ['Вес средства'], 38: ['Вес товара без упаковки(г)'], 39: ['Вес товара с упаковкой(г)'],
                     40: ['Комплектация'], 41: ['Количество предметов в упаковке'], 42: ['Упаковка']
@@ -513,7 +513,6 @@ class SexOptovik(main.Functions):
                      'Латвия', 'Малайзия', 'Нидерланды', 'Норвегия', 'Польша', 'Россия', 'Сенегал', 'Сингапур',
                      'Мексика', 'Тайланд', 'Тибет', 'Тибет', 'Украина', 'Франция', 'Швейцария', 'Швеция', 'Шотландия',
                      'Эстония', 'Япония', 'Китай']
-
         # data_set_wb_cats = Functions.get_wb_cats(self) #загрузка из выборочного файла
         amount_of_items_in_file = int(input(f'Введите число товаров в готовых файлах XLSX\n'
                                             f'По стандарту - {self.CONST_AMOUNT_OF_XLSX_ITEMS}\nВвод: '))
@@ -584,15 +583,21 @@ class SexOptovik(main.Functions):
         PATH_GOOGLE_XLSX = f'./pool/SexOptovik/google_downloaded/wb_{self.seller_code}.xlsx'
 
         # !!!!!!!!!!!!!!!!!!!!!!!!!!
-
+        checkBrand = "Lasciva Piter Anal Wisteria"
+        # if self.seller_code == '1277':
+        #     checkBrand = "Lasciva"
+        # elif self.seller_code == '1366':
+        #     checkBrand = "Piter Anal"
+        # elif self.seller_code == '1299':
+        #     checkBrand = "Wisteria Lasciva"
         # needed_file_data = Functions.getFolderFile(0, ' существующих товары')
         # if not needed_file_data:
         #    print('Ошибка файла. Попробуйте заново')
         #    sys.exit(0)
 
         print('Считаю новые товары...')
-        set_of_data_artics, errors_set_data_artics = main.Functions.getData(self, PATH_GOOGLE_XLSX,
-                                                                            seller_code=self.seller_code)
+        set_of_data_artics, errors_set_data_artics, liedBrands = main.Functions.getData(self, PATH_GOOGLE_XLSX,
+                                                                                        seller_code=self.seller_code, checkBrand=checkBrand)
         #set_of_data_artics = set()
         #errors_set_data_artics = set()
 
@@ -659,8 +664,8 @@ class SexOptovik(main.Functions):
                         articul = f'id-{DATA[0]}-{self.seller_code}'
                         if articul not in PROBLEM_ITEMS:
                             # id-18474-1277
-                            if articul == "id-26530-1277":
-                                input()
+                            # if articul == "id-26530-1277":
+                            #     input()
                             model = name = description = category = extra_info = brand = country = osobennost_model = \
                                 vibro = elite = sex = colour = complect = count_items = sostav = photo_str = \
                                 material = batteries = opis = check = volume = ed = \
@@ -858,7 +863,7 @@ class SexOptovik(main.Functions):
                                 if self.seller_code == '1277':
                                     brand = 'Lasciva'
                                 elif self.seller_code == '1366':
-                                    brand = 'Piter Anal'
+                                    brand = 'BANANZZA'
                                 elif self.seller_code == '1299':
                                     brand == 'Wisteria'
                             opis += f'Ресейллер: {brand}. '
@@ -1064,6 +1069,7 @@ class SexOptovik(main.Functions):
 
 
     def __init__(self, seller_code, preview='SexOptovik'):
+        self.checkBrand = None
         self.preview = preview
         main.Functions.showText('Sex Optovik')
         self.seller_code = str(seller_code)

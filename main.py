@@ -121,9 +121,19 @@ class Functions:
         original_code = seller_code
         new_articular = current_code = ''
         if shortArticular:
-            set_of_post_codes = [
-                'UNCOMMENT PREV ARRAY IF CHECK Z1 NEEDED'
-            ]
+            if seller_code == '1277':
+                set_of_post_codes = [
+                    '-1168', '-1299', '-1366'
+                ]
+            elif seller_code == '1299':
+                set_of_post_codes = [
+                    '-1168', '-1277', '-1366'
+                ]
+            elif seller_code == '1366':
+                set_of_post_codes = [
+                    '-1168', '-1299', '-1277'
+                ]
+            else: set_of_post_codes = ['YOUR POST CODE NOT FOUND.\nContinue with all items']
         else:
             set_of_post_codes = [
                 'Z1C1A0t-', 'W1C1Ayt', 'Z1C1L', 'Z1C1K', 'W1C1K', 'W1C1V', 'Z1C1A', 'W1C1L', 'W1C1A', 'Z1C1V'
@@ -131,13 +141,7 @@ class Functions:
         check_any_code_in = []
         for i in set_of_post_codes:
             check_any_code_in.append(i in articular)
-        if 'id' in articular:
-            articular = articular[articular.find('-') + 1:]
-            articular = articular[:articular.find('-')]
-            if 4 + len(seller_code) + len(articular) != len(temp):
-                return False, temp
-            new_articular = f'id-{articular}-{seller_code}'
-        elif any(check_any_code_in):
+        if any(check_any_code_in):
             for i in set_of_post_codes:
                 if i in articular:
                     current_code = i
@@ -153,6 +157,12 @@ class Functions:
             if len(articular) + c + len(seller_code) != len(temp):
                 return False, temp
             new_articular = f'{original_code}{set_of_post_codes[check_any_code_in.index(True)]}{articular}'
+        elif 'id' in articular:
+            articular = articular[articular.find('-') + 1:]
+            articular = articular[:articular.find('-')]
+            if 4 + len(seller_code) + len(articular) != len(temp):
+                return False, temp
+            new_articular = f'id-{articular}-{seller_code}'
         else:
             return False, temp
         if shortArticular:
@@ -160,39 +170,22 @@ class Functions:
         else:
             return True, new_articular
 
-    def getData(self, path, seller_code, marketplace='wb', _row = 3):
+    def getData(self, path, seller_code, _row = 3, checkBrand = ''):
         articuls = set()
         errors = set()
-        enc = ''
-        try:
-            with open(path, 'r') as f:
-                f.readline()
-                for lines in f:
-                    if marketplace == 'wb':
-                        articular = self.clean_for_data(list(map(str, lines.split(';')))[_row], seller_code)
-                    elif marketplace == 'oz':
-                        _row = 0
-                        articular = self.clean_for_data(list(map(str, lines.split(';')[_row])), seller_code)
-                    if articular[0]:
-                        articuls.add(articular[1])
-                    else:
-                        errors.add(articular[1])
-            print('Существующие товары успешно загружены')
-            return articuls, errors
+        lieBrands = set()
+        xlsx = openpyxl.load_workbook(path)
+        sheet = xlsx.active
+        for row in sheet.iter_rows(2, sheet.max_row):
 
-
-        # TypeError
-
-        except BaseException:
-            xlsx = openpyxl.load_workbook(path)
-            sheet = xlsx.active
-            for row in sheet.iter_rows(2, sheet.max_row):
-                articular = self.clean_for_data(row[_row].value, seller_code=seller_code)
-                if articular[0]:
-                    articuls.add(articular[1])
-                else:
-                    errors.add(articular[1])
-            return articuls, errors
+            articular = self.clean_for_data(row[_row].value, seller_code=seller_code)
+            if articular[0]:
+                articuls.add(articular[1])
+                if row[0].value is not None and row[0].value.lower() in checkBrand.lower():
+                    lieBrands.add(articular[1])
+            else:
+                errors.add(articular[1])
+        return articuls, errors, lieBrands
 
     @staticmethod
     def download_universal(url='', path_def=''):
@@ -758,7 +751,8 @@ class Functions:
                     # return
             print(f'Успешно загружено {COUNT_DOWLOADED} / {len(google_ids)} файлов\n')
             time.sleep(1.5)
-
+    def googleUpload(self):
+        pass
     def uploadFromFile(self, file_path, seller_code='', isSet=True):
         if isSet:
             set_res = set()
