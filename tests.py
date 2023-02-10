@@ -1,9 +1,13 @@
 from __future__ import print_function
 
+import datetime
 import io
 import math
+import sys
+import time
 
 import google.auth
+import httplib2
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
@@ -603,12 +607,15 @@ import os
 
 import re
 
-
 # a = ''
 # a = float(10)
 # print(a)
 
 import pathlib as Path
+
+import main
+from Google import Create_Service
+
 
 # path = './shrih/Список штрихкодов (4).xlsx'
 # #with ope n
@@ -853,9 +860,8 @@ import pathlib as Path
 # print(b in a)
 
 
-
-#from bs4 import BeautifulSoup
-#print(BeautifulSoup("&quot;Меня уже трясет. Кристиан наклоняется и целует меня между лопаток.<br>-Готова? <br>Готова? А готова ли я к такому?<br>-Да, - шепчу чуть слышно, едва ворочая сухим языком. Он сует что-то в меня. Черт, это же большой палец. Другие пальцы ласкают клитор. Я стону… от наслаждения. И пока одни пальцы творят это маленькое чудо, другие вводят в анус пробку. Кристиан замирает. Я слышу его хриплое, резкое дыхание и пытаюсь принять все ощущения: восхитительной полноты, тревожно-волнующей опасности, чисто эротическое наслаждение. Все они смешиваются, скручиваются в спирали, растекаются во мне. Кристиан осторожно нажимает на пробку…&quot; <br><br>***<br><br>Коллекция &quot;50 оттенков серого&quot;. Совершенно потрясающая анальная пробка из гладкого, нежнейшего силикона. Невероятная анальная стимуляция.<br><br>Идеальная анатомическая форма, зауженный кончик для легкого проникновения, т-образное основание, за которое удобно держаться, 3 скорости и семь вариантов вибрации. Ощущение наполненности и чувственное наслаждение.<br><br>Пробка водонепроницаема, ею можно играть даже в ванной. Вибрация: 1 батарейка ААА (в комплект не входит).<br><br>С пробкой можно использовать смазки на водной основе.", "lxml").text.replace("\xc2\xa0", " ").replace('&nbsp', '').replace('&quot', '').replace('…','').replace('*',''))
+# from bs4 import BeautifulSoup
+# print(BeautifulSoup("&quot;Меня уже трясет. Кристиан наклоняется и целует меня между лопаток.<br>-Готова? <br>Готова? А готова ли я к такому?<br>-Да, - шепчу чуть слышно, едва ворочая сухим языком. Он сует что-то в меня. Черт, это же большой палец. Другие пальцы ласкают клитор. Я стону… от наслаждения. И пока одни пальцы творят это маленькое чудо, другие вводят в анус пробку. Кристиан замирает. Я слышу его хриплое, резкое дыхание и пытаюсь принять все ощущения: восхитительной полноты, тревожно-волнующей опасности, чисто эротическое наслаждение. Все они смешиваются, скручиваются в спирали, растекаются во мне. Кристиан осторожно нажимает на пробку…&quot; <br><br>***<br><br>Коллекция &quot;50 оттенков серого&quot;. Совершенно потрясающая анальная пробка из гладкого, нежнейшего силикона. Невероятная анальная стимуляция.<br><br>Идеальная анатомическая форма, зауженный кончик для легкого проникновения, т-образное основание, за которое удобно держаться, 3 скорости и семь вариантов вибрации. Ощущение наполненности и чувственное наслаждение.<br><br>Пробка водонепроницаема, ею можно играть даже в ванной. Вибрация: 1 батарейка ААА (в комплект не входит).<br><br>С пробкой можно использовать смазки на водной основе.", "lxml").text.replace("\xc2\xa0", " ").replace('&nbsp', '').replace('&quot', '').replace('…','').replace('*',''))
 
 
 # a = '489080b144923'
@@ -1012,18 +1018,20 @@ def check_v(s):
         for i in t:
             a = int(i)
             if len(str(a)) > 2:
-                return 0,''
+                return 0, ''
         photo_str = s
         return 1, photo_str
     except Exception as ex:
         return 0, ''
+
+
 def re_init_photo():
     import main
     a = main.Functions()
     dict = {}
     saver = {1: ['Артикул товара'], 2: ['Медиафайлы']}
     path = main.Functions.getFolderFile(0, item='товары без фото')
-    set_a = a.getData(path=path, seller_code='1366', _row=6)[0]
+    set_a = a.getData(path=path, seller_code='1277', _row=6)[0]
     with open('./SexOptovik/all_prod_info.csv', 'r+') as f:
         for lines in f:
             s = ''
@@ -1044,9 +1052,158 @@ def re_init_photo():
                 saver[2].append(s)
         a.save_data(saver, seller_code='1366', path=r"C:\Users\Anton\Desktop")
 
+
 def getFib(n):
     if n < 2: return n;
-    return getFib(n-1) + getFib(n-2)
+    return getFib(n - 1) + getFib(n - 2)
+
+
+def photo(path='', _row=0, checkBrand='', seller_code=''):
+    articuls = set()
+    errors = set()
+    lieBrands = set()
+    xlsx = openpyxl.load_workbook(path)
+    sheet = xlsx.active
+    for row in sheet.iter_rows(2, sheet.max_row):
+        articular = main.Functions.clean_for_data(row[_row].value, seller_code=seller_code)
+        if articular[0]:
+            articuls.add(articular[1])
+            if row[0].value is not None and row[0].value.lower() in checkBrand.lower():
+                lieBrands.add(articular[1])
+        else:
+            errors.add(articular[1])
+    return articuls, errors, lieBrands
+
+
+# set_a = main.Functions.getData(main.Functions.getFolderFile(0), 1366,)
+# re_init_photo()
+# saver = {1: ['Артикул товара'], 2: ['Медиафайлы']}
+# articuls, errors, lieBrands = photo(r"C:\Users\Anton\Downloads\report_2022_12_2.xlsx (2).xlsx", 3, "BANANZZA", "1366")
+# with open('./SexOptovik/all_prod_info.csv', 'r+') as f:
+#     for lines in f:
+#         s = ''
+#         DATA = list(map(lambda line: line.replace('"', ''), lines.split(';')))
+#         if DATA[0] in articuls:
+#             v = [0, '']
+#             data_row = 13
+#             while not v[0]:
+#                 v = check_v(DATA[data_row])
+#                 data_row += 1
+#             photo_urls = list(map(lambda
+#                                       photo_str: f'http://sexoptovik.ru/_project/user_images/prods_res/{DATA[0]}/{DATA[0]}_{photo_str}_{650}.jpg',
+#                                   v[1].split()))
+#             for i in range(len(photo_urls) - 1):
+#                 s += f'{photo_urls[i]}; '
+#             s += photo_urls[len(photo_urls) - 1]
+#             saver[1].append(f'id-{DATA[0]}-1366')
+#             saver[2].append(s)
+#     main.Functions().save_data(saver, seller_code='1366', path=r"C:\Users\Anton\Desktop")
+
+
+import pandas as pd
+
+def parseExcelOzon(path=""):
+    xlsx_file = pd.read_excel(open(path, 'rb'), sheet_name='Шаблон для поставщика')
+    params = {}
+    for row in xlsx_file.itertuples():
+        index = 0
+        for cell in row:
+            index += 1
+            try:
+                cell += ""
+            except TypeError:
+                continue
+            params[index] = {'name': cell, 'required': True if '*' in cell else False}
+            xlsx_file.close()
+            xlsx_file.handles()
+        return params
+
+def startParseOzon():
+    paths = [f for f in os.listdir("./pool/SexOptovik/Ozon") if f.endswith(".xlsx")]
+    if len(paths) == 0:
+        print('[!] Проверьте файлы в папке шаблонов Ozon. Данных не найдено !\nВы можете попробовать заново загрузить файлы')
+        sys.exit(1)
+    else:
+        data = str(datetime.datetime.now())
+        data = data[:data.find(" ")]
+        for i in range(len(paths)):
+            success = False
+            while not success:
+                try:
+                    if data in paths[i]:
+                        paths[i] = paths[i].replace("~${0} ".format(data),"")
+                    a = parseExcelOzon(path="./pool/SexOptovik/Ozon/{0}".format(paths[i]))
+                    print('{0} / name: {1}                  / cols: {2} >> {3}'.format(i + 1, paths[i][paths[i].find(" ")+1:], len(a), a))
+                    success = True
+                except PermissionError:
+                    input("[!] Закройте файл {0} и нажмите Enter".format(paths[i][paths[i].find(" ")+1:]))
+                except Exception as ex:
+                    print("[!] Произошла непредвиденная ошибка.\nПодробнее: {0} при обработке {1} файла".format(ex, paths[i]))
+                    sys.exit(1)
+
+
+
+def folderFilesGoogle(folderId='1COxI8zZlgQgLN_XLmOvARZ6Oc1KDQTC-'):
+    CLIENT_SECRET_FILE = '.\client_secrets.json'
+    API_NAME = 'drive'
+    API_VERSION = 'v3'
+    SCOPES = ['https://www.googleapis.com/auth/drive']
+    _COUNT_TRIES_BEFORE_EXIT = 2
+    success = False
+    _try = 1
+    while not success:
+        try:
+            service = Create_Service(CLIENT_SECRET_FILE, API_NAME, API_VERSION, SCOPES)
+
+            page_token = None
+            response = service.files().list(q=f"'{folderId}' in parents",
+                                                  spaces='drive',
+                                                  fields='nextPageToken, files(id, name)',
+                                                  pageToken=page_token).execute()
+
+
+            #query = f"parents = '{folderId}'"
+            #response = service.files().list(q=query).execute()
+            files = response.get('files')
+            if not files:
+                print('На диске нет папок.')
+            else:
+                df = pd.DataFrame(files)
+                print("Найдено: \n{0}".format(df))
+                time.sleep(1.5)
+                file_names = [x['name'] for x in files]
+                files_ids = [x['id'] for x in files]
+                main.Functions.google_driver(google_ids=files_ids,
+                                             file_names=file_names,
+                                             path_os_type='./pool/SexOptovik/Ozon', service= service)
+            success=True
+        except OSError as ex:
+            input(f'Ошибка! {ex}.\nПроверьте соединение и нажмите любую клавишу.')
+            if _try > _COUNT_TRIES_BEFORE_EXIT:
+                _try += 1
+            else:
+                print(f'Это уже {_try} попытка. \n'
+                      f'Попробуйте проверить данные и перезапустить программу)')
+                sys.exit(0)
+        except httplib2.error.ServerNotFoundError:
+            input('Проверьте соединение и нажмите любую клавишу')
+        except google.auth.exceptions.RefreshError:
+            print('Токен устарел. Необходимо произвести замену токена.')
+            if os.path.isfile('./token_drive_v3.pickle'):
+                os.remove('./token_drive_v3.pickle')
+                print('Устаревший токен успешно удален. Необходимо пройти авторизацию заново.')
+                time.sleep(3)
+            else:
+                print('Файл токена не найден в текущем местоположении. Выберите его самостоятельно')
+                path_token = main.Functions.getFolderFile(0, item=' файл токена google')
+                os.remove(path_token)
+        time.sleep(1.5)
+
+    return
 
 if __name__ == '__main__':
-   re_init_photo()
+    folderFilesGoogle()
+    #startParseOzon()
+
+
+

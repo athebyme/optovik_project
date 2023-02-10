@@ -10,8 +10,7 @@ import shutil
 import sys
 import time
 
-
-class SexOptovik(main.Functions):
+class SexOptovik():
     cwd = os.getcwd()
     optovik_items = {}
     current_cats_wb = set()
@@ -19,39 +18,56 @@ class SexOptovik(main.Functions):
     size_img = 650
     CONST_AMOUNT_OF_XLSX_ITEMS = 10
 
-    parsed_items = {1: ['Номер карточки'], 2: ['Категория'], 3: ['Цвет'], 4: ['Бренд'], 5: ['Пол'], 6: ['Название'],
-                    7: ['Артикул товара'], 8: ['Размер'], 9: ['Рос. размер'], 10: ['Баркод товара'],
-                    11: ['Цена'], 12: ['Состав'], 13: ['Медиафайлы'], 14: ['Описание'],
-                    15: ['Страна производства'],
-                    16: ['Особенности секс игрушки'], 17: ['Особенности модели'], 18: ['Материал'],
-                    19: ['Наличие батареек в комплекте'], 20: ['Объем'], 21: ['Объем (мл)'],
-                    22: ['Объем средства'], 23: ['Ширина предмета'], 24: ['Ширина упаковки'], 25: ['Длина (см)'],
-                    26: ['Длина секс игрушки'],
-                    27: ['Рабочая длина секс игрушки'], 28: ['Высота предмета'], 29: ['Высота упаковки'],
-                    30: ['Длина предмета'], 31: ['Длина упаковки'], 32: ['Диаметр'],
-                    33: ['Диаметр секс игрушки'], 34: ['Вид вибратора'], 35: ['Вес без упаковки'], 36: ['Вес(г)'],
-                    37: ['Вес средства'], 38: ['Вес товара без упаковки(г)'], 39: ['Вес товара с упаковкой(г)'],
-                    40: ['Комплектация'], 41: ['Количество предметов в упаковке'], 42: ['Упаковка']
-
-                    }
-    parsed_items_100_items = {1: ['Номер карточки'], 2: ['Категория'], 3: ['Цвет'], 4: ['Бренд'], 5: ['Пол'],
-                              6: ['Название'],
-                              7: ['Артикул товара'], 8: ['Размер'], 9: ['Рос. размер'], 10: ['Баркод товара'],
-                              11: ['Цена'], 12: ['Состав'], 13: ['Медиафайлы'], 14: ['Описание'],
+    parsed_items =           {1: ['Номер карточки'], 2: ['Предмет'], 3: ['Цвет'],
+                              4: ['Бренд'], 5: ['Пол'], 6: ['Название'],
+                              7: ['Артикул товара'], 8: ['Размер'], 9: ['Рос. размер'],
+                              10: ['Баркод товара'],
+                              11: ['Цена'], 12: ['Состав'], 13: ['Медиафайлы'],
+                              14: ['Описание'],
                               15: ['Страна производства'],
-                              16: ['Особенности секс игрушки'], 17: ['Особенности модели'], 18: ['Материал'],
-                              19: ['Наличие батареек в комплекте'], 20: ['Объем'], 21: ['Объем (мл)'],
-                              22: ['Объем средства'], 23: ['Ширина предмета'], 24: ['Ширина упаковки'],
-                              25: ['Длина (см)'],
-                              26: ['Длина секс игрушки'],
-                              27: ['Рабочая длина секс игрушки'], 28: ['Высота предмета'], 29: ['Высота упаковки'],
-                              30: ['Глубина предмета'], 31: ['Глубина упаковки'], 32: ['Диаметр'],
-                              33: ['Диаметр секс игрушки'], 34: ['Вид вибратора'], 35: ['Вес без упаковки'],
-                              36: ['Вес(г)'],
+                              16: ['Особенности секс игрушки'],
+                              17: ['Особенности модели'], 18: ['Материал изделия'],
+                              19: ['Наличие батареек в комплекте'], 20: ['Объем'],
+                              21: ['Объем (мл)'],
+                              22: ['Объем средства'], 23: ['Ширина предмета'],
+                              24: ['Ширина упаковки'], 25: ['Длина (см)'], 26: ["Длина упаковки"],
+                              27: ['Длина секс игрушки'],
+                              28: ['Рабочая длина секс игрушки'],
+                              29: ['Высота предмета'], 30: ['Высота упаковки'],
+                              31: ['Глубина предмета'],
+                              32: ['Диаметр'],
+                              33: ['Диаметр секс игрушки'], 34: ['Вид вибратора'],
+                              35: ['Вес без упаковки'], 36: ['Вес(г)'],
                               37: ['Вес средства'], 38: ['Вес товара без упаковки(г)'],
                               39: ['Вес товара с упаковкой(г)'],
-                              40: ['Комплектация'], 41: ['Количество предметов в упаковке'], 42: ['Упаковка']
+                              40: ['Комплектация'],
+                              41: ['Количество предметов в упаковке'], 42: ['Упаковка']
+                              }
 
+    parsed_items_100_items = {1: ['Номер карточки'], 2: ['Предмет'], 3: ['Цвет'],
+                              4: ['Бренд'], 5: ['Пол'], 6: ['Название'],
+                              7: ['Артикул товара'], 8: ['Размер'], 9: ['Рос. размер'],
+                              10: ['Баркод товара'],
+                              11: ['Цена'], 12: ['Состав'], 13: ['Медиафайлы'],
+                              14: ['Описание'],
+                              15: ['Страна производства'],
+                              16: ['Особенности секс игрушки'],
+                              17: ['Особенности модели'], 18: ['Материал изделия'],
+                              19: ['Наличие батареек в комплекте'], 20: ['Объем'],
+                              21: ['Объем (мл)'],
+                              22: ['Объем средства'], 23: ['Ширина предмета'],
+                              24: ['Ширина упаковки'], 25: ['Длина (см)'], 26: ["Длина упаковки"],
+                              27: ['Длина секс игрушки'],
+                              28: ['Рабочая длина секс игрушки'],
+                              29: ['Высота предмета'], 30: ['Высота упаковки'],
+                              31: ['Глубина предмета'],
+                              32: ['Диаметр'],
+                              33: ['Диаметр секс игрушки'], 34: ['Вид вибратора'],
+                              35: ['Вес без упаковки'], 36: ['Вес(г)'],
+                              37: ['Вес средства'], 38: ['Вес товара без упаковки(г)'],
+                              39: ['Вес товара с упаковкой(г)'],
+                              40: ['Комплектация'],
+                              41: ['Количество предметов в упаковке'], 42: ['Упаковка']
                               }
 
     @staticmethod
@@ -323,10 +339,10 @@ class SexOptovik(main.Functions):
                                     'wb_1277.xlsx']
                 url_wb_xlsx_1299 = ['https://docs.google.com/file/d/163cgrAFCKd01CGG1FhhT70ibF8d9F7B3/view?usp=sharing',
                                     'wb_1299.xlsx']
-                url_wb_xlsx_1364 = ['https://docs.google.com/file/d/1c8eaqFkxmYOPsshXwvMP9z5HaXliS-hs/view?usp=sharing',
-                                    'wb_1364.xlsx']
+                url_wb_xlsx_1366 = ['https://docs.google.com/file/d/1c8eaqFkxmYOPsshXwvMP9z5HaXliS-hs/view?usp=sharing',
+                                    'wb_1366.xlsx']
 
-                download_available = [url_blacklist_items_wb, url_problem_items_wb_id, url_wb_cats, url_wb_xlsx_1277, url_wb_xlsx_1299, url_wb_xlsx_1364]
+                download_available = [url_blacklist_items_wb, url_problem_items_wb_id, url_wb_cats, url_wb_xlsx_1277, url_wb_xlsx_1299, url_wb_xlsx_1366]
 
                 google_ids = ['1bMMyC75qNwpHD61CfaM7gU2zT-dR012t', '1dE7VrYH_CDfKFTofDzhjbc8Cp7zZ8ios',
                               '1zqL6RS35CqQaeZMMAnKHFugmImbJi4t8']
@@ -453,7 +469,7 @@ class SexOptovik(main.Functions):
                 getting_in_cat_wb.append('насадки на страпон')
             if 'мастурбатор' in extra\
                     or 'мастурбатора' in extra:
-                getting_in_cat_wb.append('насадки для мастурбатора')
+                getting_in_cat_wb.append('насадки на мастурбатор')
             if 'член' in extra\
                     or 'члена' in extra:
                 getting_in_cat_wb.append('насадки на член')
@@ -497,13 +513,14 @@ class SexOptovik(main.Functions):
 
     def init_stocks(self):
         set_stocks = set()
-        with open(r"C:\Users\Anton\Documents\stock.csv", 'r+', encoding='utf-8') as stock:
-            for line in stock:
-                articul = self.clean_for_data(shortArticular=True, seller_code='1366',
-                                         articular=line.rstrip().replace(';', ''))
-                if articul[0]:
-                    set_stocks.add(articul[1])
+        with open(r"C:\Users\Anton\Downloads\all_prod_prices__ (2).csv") as f:
+            f.readline()
+            for lines in f:
+                line = lines.split(";")
+                if int(line[3]) >= 1:
+                    set_stocks.add(line[0])
         return set_stocks
+
 
 
     def start(self):
@@ -649,23 +666,23 @@ class SexOptovik(main.Functions):
             except PermissionError:
                 input('Пожалуйста, закройте все открытые файлы из папки на нажмите любую клавишу.\n')
         count_items_100 = 0
+        set_stocks = self.init_stocks()
+
         with open(file_path) as file:
             ERRORS_ITEMS_BANNED_BRANDS = set()
             for line in file:
                 line = line.replace('&quot;', '')
                 DATA = list(map(lambda line: line.replace('"', ''), line.split(';')))
-                current_articul_wb_pattern = {}
+                if DATA[0]=="15246":
+                    print(DATA[0])
                 # отсев существующих артикулов
-                if DATA[0] not in set_of_data_artics:
+                if DATA[0] not in set_of_data_artics and DATA[0] in set_stocks:
                     if DATA[4].lower() not in blacklist_brands:
                         curr_row_data = {''}
-
                         # ---                ЗАПОЛНЕНИЕ ШАБЛОНА WB
                         articul = f'id-{DATA[0]}-{self.seller_code}'
                         if articul not in PROBLEM_ITEMS:
                             # id-18474-1277
-                            # if articul == "id-26530-1277":
-                            #     input()
                             model = name = description = category = extra_info = brand = country = osobennost_model = \
                                 vibro = elite = sex = colour = complect = count_items = sostav = photo_str = \
                                 material = batteries = opis = check = volume = ed = \
@@ -785,7 +802,7 @@ class SexOptovik(main.Functions):
                                     length_it = 'универсальный (растягивается)'
                                 else:
                                     length_it = float(length_it)
-                                    length_up = round(length_it + length_it * 0.1, 3)
+                                    length_up = round(length_it + length_it * 0.1)
 
                                 weight = size.get('weight')  # Вес (г)
                                 if weight is None or weight == '':
@@ -799,7 +816,7 @@ class SexOptovik(main.Functions):
                                     width_it = 'универсальный (растягивается)'
                                 else:
                                     width_it = float(width_it)
-                                    width_up = round(width_it + width_it * 0.1, 3)
+                                    width_up = round(width_it + width_it * 0.1)
 
                                 height_it = size.get('height')  # Высота предмета + высота упаковки
                                 if height_it is None or height_it == '':
@@ -808,7 +825,7 @@ class SexOptovik(main.Functions):
                                     height_it = 'универсальный (растягивается)'
                                 else:
                                     height_it = float(height_it)
-                                    height_up = round(height_it + height_it * 0.1, 3)
+                                    height_up = round(height_it + height_it * 0.1)
 
                                 diameter_it = size.get('diameter')  # Диаметр
                                 if diameter_it is None or diameter_it == '':
@@ -817,7 +834,7 @@ class SexOptovik(main.Functions):
                                     diameter_it ='универсальный (растягивается)'
                                 else:
                                     diameter_it = float(diameter_it)
-                                    diameter_up = round(diameter_it + diameter_it * 0.1, 3)
+                                    diameter_up = round(diameter_it + diameter_it * 0.1)
 
                                 depth_it = size.get('depth')  # Глубина
                                 if depth_it is None or depth_it == '':
@@ -826,7 +843,7 @@ class SexOptovik(main.Functions):
                                     depth_it = 'универсальный (растягивается)'
                                 else:
                                     depth_it = float(depth_it)
-                                    depth_up = round(depth_it + depth_it * 0.1, 3)
+                                    depth_up = round(depth_it + depth_it * 0.1)
                             if len(photo_urls) != 0:
                                 for z in range(len(photo_urls) - 1):
                                     photo_wb += photo_urls[z] + '; '
@@ -922,7 +939,7 @@ class SexOptovik(main.Functions):
                                 if check_size_it[i] == '':
                                     check_size_it[i] = check_size_v[i]
                                 if check_size_up[i] == '':
-                                    check_size_up[i] = round(check_size_v[i] + check_size_v[i] * 0.1, 2)
+                                    check_size_up[i] = round(check_size_v[i] + check_size_v[i] * 0.1)
                             weight, weight_bez_up_kg = weight, weight_bez_up_kg
                             try:
                                 length_it, length_up = check_size_it[1], check_size_up[1]
@@ -935,13 +952,13 @@ class SexOptovik(main.Functions):
                             try:
                                 height_it, height_up = check_size_it[3], check_size_up[3]
                             except height_up:
-                                height_up = 16.5
+                                height_up = 17
                             try:
                                 depth_it, depth_up = check_size_it[4], check_size_up[4]
                             except ValueError:
-                                depth_up = 19.6
-                            if category == 'Презервативы':
-                                continue
+                                depth_up = 20
+                            #if category == 'Презервативы':
+                            #    continue
 
                             if country == 'Англия' or country == 'Соединенное королевство':
                                 country = 'Великобритания'
@@ -959,6 +976,16 @@ class SexOptovik(main.Functions):
                                 vibr_type = elite
                             elif vibro != '':
                                 vibr_type = vibro
+
+                            isChanged = False
+                            while len(complect) > 100:
+                                ind = complect.rfind(',')
+                                complect = complect[:ind]
+                                isChanged = True
+                            if(len(complect) + 6 <= 100 and isChanged):
+                                complect +=" и др."
+
+
                             abs_new_items += 1
 
                             current_articul_wb_pattern = {2: category, 3: '', 4: brand, 5: sex, 6: name,
@@ -968,9 +995,10 @@ class SexOptovik(main.Functions):
                                                           16: osobennost_model, 17: osobennost_model, 18: material,
                                                           19: batteries, 20: volume, 21: volume,
                                                           22: f'{volume} {ed}',
-                                                          23: width_it, 24: width_up, 25: length_up, 26: length_it,
-                                                          27: length_it, 28: height_it, 29: height_up,
-                                                          30: depth_it, 31: depth_up, 32: diameter_up, 33: diameter_it,
+                                                          23: width_it, 24: width_up, 25: length_up, 26: length_up,
+                                                          27: length_it,
+                                                          28: length_it, 29: height_it, 30: height_up,
+                                                          31: depth_it, 32: diameter_up, 33: diameter_it,
                                                           34: vibr_type, 35: weight_bez_up_kg, 36: weight,
                                                           37: weight, 38: weight_bez_up_kg, 39: weight, 40: complect,
                                                           41: count_items, 42: 'Непрозрачная анонимная упаковка'
@@ -991,7 +1019,7 @@ class SexOptovik(main.Functions):
                                                          path=path_100,
                                                          original_name=f'{count_items_100 - self.CONST_AMOUNT_OF_XLSX_ITEMS - 1}-{count_items_100}')
                                 self.parsed_items_100_items.clear()
-                                self.parsed_items_100_items = {1: ['Номер карточки'], 2: ['Категория'], 3: ['Цвет'],
+                                self.parsed_items_100_items = {1: ['Номер карточки'], 2: ['Предмет'], 3: ['Цвет'],
                                                                4: ['Бренд'], 5: ['Пол'], 6: ['Название'],
                                                                7: ['Артикул товара'], 8: ['Размер'], 9: ['Рос. размер'],
                                                                10: ['Баркод товара'],
@@ -999,15 +1027,15 @@ class SexOptovik(main.Functions):
                                                                14: ['Описание'],
                                                                15: ['Страна производства'],
                                                                16: ['Особенности секс игрушки'],
-                                                               17: ['Особенности модели'], 18: ['Материал'],
+                                                               17: ['Особенности модели'], 18: ['Материал изделия'],
                                                                19: ['Наличие батареек в комплекте'], 20: ['Объем'],
                                                                21: ['Объем (мл)'],
                                                                22: ['Объем средства'], 23: ['Ширина предмета'],
-                                                               24: ['Ширина упаковки'], 25: ['Длина (см)'],
-                                                               26: ['Длина секс игрушки'],
-                                                               27: ['Рабочая длина секс игрушки'],
-                                                               28: ['Высота предмета'], 29: ['Высота упаковки'],
-                                                               30: ['Глубина предмета'], 31: ['Глубина упаковки'],
+                                                               24: ['Ширина упаковки'], 25: ['Длина (см)'], 26: ["Длина упаковки"],
+                                                               27: ['Длина секс игрушки'],
+                                                               28: ['Рабочая длина секс игрушки'],
+                                                               29: ['Высота предмета'], 30: ['Высота упаковки'],
+                                                               31: ['Глубина предмета'],
                                                                32: ['Диаметр'],
                                                                33: ['Диаметр секс игрушки'], 34: ['Вид вибратора'],
                                                                35: ['Вес без упаковки'], 36: ['Вес(г)'],
@@ -1045,28 +1073,6 @@ class SexOptovik(main.Functions):
         input('Обработка товаров с сайта Sex Optovik завершена.')
 
         # -------------------------------------------------------------------
-
-
-    wb_pattern = {1: ['Номер карточки'], 2: ['Категория'], 3: ['Цвет'], 4: ['Бренд'], 5: ['Пол'],
-                  6: ['Название'], 7: ['Артикул товара'], 8: ['Размер'],
-                  9: ['Рос. размер'], 10: ['Баркод товара'], 11: ['Цена'], 12: ['Состав'], 13: ['Описание'],
-                  14: ['Вес (г)'], 15: ['Вес без упаковки (кг)'], 16: ['Вес с упаковкой (кг)'],
-                  17: ['Вес товара без упаковки (г)'],
-                  18: ['Вес товара с упаковкой (г) (г)'], 19: ['Вид вибратора'], 20: ['Вид лубриканта'],
-                  21: ['Вид мастурбатора'],
-                  22: ['Вкус'], 23: ['Возрастные ограничения'],
-                  24: ['Высота предмета (см)'], 25: ['Высота упаковки (см)'], 26: ['Глубина предмета'],
-                  27: ['Глубина упаковки (см)'], 28: ['Диаметр предмета (см)'], 29: ['Действие лубриканта'],
-                  30: ['Диаметр секс игрушки'], 31: ['Количество предметов в упаковке'],
-                  32: ['Количество предметов в упаковке (шт.)'], 33: ['Комплектация'],
-                  34: ['Материал изделия'], 35: ['Модель'],
-                  36: ['Объем'], 37: ['Объем средства'], 38: ['Объем товара'], 39: ['Особенности белья'],
-                  40: ['Особенности продукта'], 41: ['Особенности секс игрушки'],
-                  42: ['Рабочая длина секс игрушки'], 43: ['Питание'],
-                  44: ['Упаковка'],
-                  45: ['Ширина предмета'], 46: ['Ширина упаковки (см)'], 47: ['Медиафайлы'], 48: ['Страна производства']
-                  }
-
 
     def __init__(self, seller_code, preview='SexOptovik'):
         self.checkBrand = None

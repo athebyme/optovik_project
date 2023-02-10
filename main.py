@@ -3,6 +3,7 @@ import socket
 from dataclasses import dataclass
 from pathlib import Path
 
+from googleapiclient.discovery import build
 import google.auth.exceptions
 import google_auth_oauthlib
 import httplib2.error
@@ -50,7 +51,7 @@ class Functions:
     paths = []
     abs_path = os.getcwd()
 
-    def __int__(self, abs_path, sellerCode, provider):
+    def __init__(self, abs_path, sellerCode, provider):
         self.provider = self.getProvider()
         self.seller_code = self.getSellerCode()
         self.paths = []
@@ -94,6 +95,74 @@ class Functions:
             return filedialog.askdirectory()
         else:
             return filedialog.askopenfilename()
+
+    def init_file(file_id, file_name):
+        # do something with the file
+        print("Initializing file %s with id %s" % (file_name, file_id))
+
+    def get_drive_service():
+        # use your own method to get google drive service
+        return None
+    @staticmethod
+    def folderFilesGoogle(folderId='1Aqfh5m3KjVk_zBmQJ_7Dz6uHvn8CeEuM'):
+        CLIENT_SECRET_FILE = '.\client_secrets.json'
+        API_NAME = 'drive'
+        API_VERSION = 'v3'
+        SCOPES = ['https://www.googleapis.com/auth/drive']
+        _COUNT_TRIES_BEFORE_EXIT = 2
+        success = False
+        _try = 1
+        while not success:
+            try:
+                service = Create_Service(CLIENT_SECRET_FILE, API_NAME, API_VERSION, SCOPES)
+                page_token = None
+                response = service.files().list(q="'%s' in parents" % folder_id,
+                                                      spaces='drive',
+                                                      fields='nextPageToken, files(id, name)',
+                                                      pageToken=page_token).execute()
+                for file in response.get('files', []):
+                    init_file(file['id'], file['name'])
+                page_token = response.get('nextPageToken', None)
+
+                while page_token is not None:
+                    response = drive_service.files().list(q="'%s' in parents" % folder_id,
+                                                          spaces='drive',
+                                                          fields='nextPageToken, files(id, name)',
+                                                          pageToken=page_token).execute()
+                    for file in response.get('files', []):
+                        init_file(file['id'], file['name'])
+                    page_token = response.get('nextPageToken', None)
+                query = f"parents = '{folderId}'"
+                response = service.files().list(q=query).execute()
+                files = response.get('files')
+                if not files:
+                    print('На диске нет папок.')
+                else:
+                    df = pd.DataFrame(files)
+                    print(df)
+            except OSError as ex:
+                input(f'Ошибка! {ex}.\nПроверьте соединение и нажмите любую клавишу.')
+                if _try > _COUNT_TRIES_BEFORE_EXIT:
+                    _try += 1
+                else:
+                    print(f'Это уже {_try} попытка. \n'
+                          f'Попробуйте проверить данные и перезапустить программу)')
+                    sys.exit(0)
+            except httplib2.error.ServerNotFoundError:
+                input('Проверьте соединение и нажмите любую клавишу')
+            except google.auth.exceptions.RefreshError:
+                print('Токен устарел. Необходимо произвести замену токена.')
+                if os.path.isfile('./token_drive_v3.pickle'):
+                    os.remove('./token_drive_v3.pickle')
+                    print('Устаревший токен успешно удален. Необходимо пройти авторизацию заново.')
+                    time.sleep(3)
+                else:
+                    print('Файл токена не найден в текущем местоположении. Выберите его самостоятельно')
+                    path_token = Functions.getFolderFile(0, item=' файл токена google')
+                    os.remove(path_token)
+                    # return
+            #print(f'Успешно загружено {COUNT_DOWLOADED} / {len(google_ids)} файлов\n')
+            time.sleep(1.5)
 
     @staticmethod
     def getFolderFile(type, item):
@@ -395,8 +464,10 @@ class Functions:
         if len(t) > 5000:
             t = t[:5000]
             t = t[:t.rfind('.')]
+        t = t.replace('▪', '')
         t = t.replace('°', '')
         t = t.replace("\\", '')
+        t = t.replace('️', '')
         t = t.replace('–', '')
         t = t.replace('’', '')
         t = t.replace('…', '.')
@@ -689,14 +760,14 @@ class Functions:
     @staticmethod
     def showText(text, font='big'):
         try:
-            # univers #basic #big #doom
+            # univers #basic #big #doo
             view_text = Figlet(font=font)
             print(view_text.renderText(text))
         except BaseException:
             print(text)
 
     @staticmethod
-    def google_driver(google_ids=[], file_names=[], path_os_type='./'):
+    def google_driver(google_ids=[], file_names=[], path_os_type='./', service = None):
         _COUNT_TRIES_BEFORE_EXIT = 2
         print('')
         COUNT_DOWLOADED = 0
@@ -709,7 +780,7 @@ class Functions:
         _try = 1
         while not success:
             try:
-                service = Create_Service(CLIENT_SECRET_FILE, API_NAME, API_VERSION, SCOPES, )
+                if service is None: service = Create_Service(CLIENT_SECRET_FILE, API_NAME, API_VERSION, SCOPES)
                 for google_id, file_name in zip(google_ids, file_names):
                     request = service.files().get_media(fileId=google_id)
 
@@ -1286,7 +1357,7 @@ class SexOptovik(Functions):
                     print('Устаревший токен успешно удален. Необходимо пройти авторищацию заново.')
                     time.sleep(3)
                 else:
-                    print('Файл токена не найден в текущем местоположении. Выберите его самостоятельно')
+                    print('[!] Файл токена не найден в текущем местоположении. Выберите его самостоятельно')
                     path_token = Functions.getFolderFile(0, item=' файл токена google')
                     os.remove(path_token)
 
@@ -1455,14 +1526,14 @@ class SexOptovik(Functions):
             except OSError:
                 os.mkdir(path)
             except FileExistsError:
-                print(f'Пожалуйста, закройте файлы из папки {path}')
+                print(f'[!] Пожалуйста, закройте файлы из папки {path}')
             except BaseException:
-                print('Ошибка. Попробуйте заново')
+                print('[!] Ошибка. Попробуйте заново')
                 sys.exit(0)
             try:
                 self.download_from_google(type=0)
             except google.auth.exceptions.TransportError:
-                print('Проверьте соединение\nХотите выбрать файл с категориями вручную?\n1 = да\n2 = нет')
+                print('[!] Проверьте соединение\nХотите выбрать файл с категориями вручную?\n1 = да\n2 = нет')
                 ch = int(input())
                 while ch > 2 or ch < 1:
                     ch = int(input('Введите число 1 ил 2'))
@@ -1543,7 +1614,7 @@ class SexOptovik(Functions):
                 os.mkdir(path_100)
                 success = True
             except PermissionError:
-                input('Пожалуйста, закройте все открытые файлы из папки на нажмите любую клавишу.\n')
+                input('[!] Пожалуйста, закройте все открытые файлы из папки на нажмите любую клавишу.\n')
 
         success = False
         _path = './!parsed_full'
@@ -1557,7 +1628,7 @@ class SexOptovik(Functions):
                 os.mkdir(_path)
                 success = True
             except PermissionError:
-                input('Пожалуйста, закройте все открытые файлы из папки на нажмите любую клавишу.\n')
+                input('[!] Пожалуйста, закройте все открытые файлы из папки на нажмите любую клавишу.\n')
         count_items_100 = 0
 
         with open(file_path) as file:
@@ -1947,7 +2018,7 @@ class OzonParser(Functions):
                 os.mkdir(path)
                 success = True
             except OSError:
-                input(f'Закройте файлы в папке {path} и нажмите любую клавишу')
+                input(f'[!] Закройте файлы в папке {path} и нажмите любую клавишу')
         download_id = ['1pp0GDS6TF6WaT8us6NhjYvbBdc3mAQcC', '1SnIBrCVFNwlA2Uti6_gzw54BjlMVeHF5']
         name_ids = ['cats_oz.txt.csv', 'banned_brands.txt']
         if seller_code == 1277:
@@ -1969,7 +2040,7 @@ class OzonParser(Functions):
             cats[0][0] = cats[0][0][1:]
             return cats
         except UnicodeDecodeError:
-            print('Ошибка кодирования')
+            print('[!] Ошибка кодирования')
             sys.exit(0)
 
     @staticmethod
@@ -1983,7 +2054,7 @@ class OzonParser(Functions):
                     art_inf.setdefault(line_array[0], [[Functions.cleanText(line_array[1])], line_array[2]])
             return art_inf
         except UnicodeDecodeError:
-            print('Ошибка кодирования файла')
+            print('[!] Ошибка кодирования файла')
             sys.exit(0)
 
     @staticmethod
