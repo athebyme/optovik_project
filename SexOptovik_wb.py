@@ -513,7 +513,9 @@ class SexOptovik():
 
     def init_stocks(self):
         set_stocks = set()
-        with open(r"C:\Users\Anton\Downloads\all_prod_prices__ (2).csv") as f:
+        url = 'http://sexoptovik.ru/files/all_prod_prices__.csv'
+        main.Functions.download_universal(url, path_def='./SexOptovik')
+        with open(r"./SexOptovik/all_prod_prices__.csv") as f:
             f.readline()
             for lines in f:
                 line = lines.split(";")
@@ -613,8 +615,8 @@ class SexOptovik():
         #    sys.exit(0)
 
         print('Считаю новые товары...')
-        set_of_data_artics, errors_set_data_artics, liedBrands = main.Functions.getData(self, PATH_GOOGLE_XLSX,
-                                                                                        seller_code=self.seller_code, checkBrand=checkBrand)
+        set_of_data_artics, errors_set_data_artics, liedBrands = main.Functions.getDataXslx(self, PATH_GOOGLE_XLSX,
+                                                                                            sellerCode=self.seller_code, checkBrand=checkBrand)
         #set_of_data_artics = set()
         #errors_set_data_artics = set()
 
@@ -673,8 +675,6 @@ class SexOptovik():
             for line in file:
                 line = line.replace('&quot;', '')
                 DATA = list(map(lambda line: line.replace('"', ''), line.split(';')))
-                if DATA[0]=="15246":
-                    print(DATA[0])
                 # отсев существующих артикулов
                 if DATA[0] not in set_of_data_artics and DATA[0] in set_stocks:
                     if DATA[4].lower() not in blacklist_brands:

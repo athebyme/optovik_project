@@ -1031,7 +1031,7 @@ def re_init_photo():
     dict = {}
     saver = {1: ['Артикул товара'], 2: ['Медиафайлы']}
     path = main.Functions.getFolderFile(0, item='товары без фото')
-    set_a = a.getData(path=path, seller_code='1277', _row=6)[0]
+    set_a = a.getDataXslx(path=path, sellerCode='1277', _row=6)[0]
     with open('./SexOptovik/all_prod_info.csv', 'r+') as f:
         for lines in f:
             s = ''
@@ -1065,7 +1065,7 @@ def photo(path='', _row=0, checkBrand='', seller_code=''):
     xlsx = openpyxl.load_workbook(path)
     sheet = xlsx.active
     for row in sheet.iter_rows(2, sheet.max_row):
-        articular = main.Functions.clean_for_data(row[_row].value, seller_code=seller_code)
+        articular = main.Functions.cleanArticul(row[_row].value, seller_code=seller_code)
         if articular[0]:
             articuls.add(articular[1])
             if row[0].value is not None and row[0].value.lower() in checkBrand.lower():
@@ -1099,111 +1099,11 @@ def photo(path='', _row=0, checkBrand='', seller_code=''):
 #             saver[2].append(s)
 #     main.Functions().save_data(saver, seller_code='1366', path=r"C:\Users\Anton\Desktop")
 
-
-import pandas as pd
-
-def parseExcelOzon(path=""):
-    xlsx_file = pd.read_excel(open(path, 'rb'), sheet_name='Шаблон для поставщика')
-    params = {}
-    for row in xlsx_file.itertuples():
-        index = 0
-        for cell in row:
-            index += 1
-            try:
-                cell += ""
-            except TypeError:
-                continue
-            params[index] = {'name': cell, 'required': True if '*' in cell else False}
-            xlsx_file.close()
-            xlsx_file.handles()
-        return params
-
-def startParseOzon():
-    paths = [f for f in os.listdir("./pool/SexOptovik/Ozon") if f.endswith(".xlsx")]
-    if len(paths) == 0:
-        print('[!] Проверьте файлы в папке шаблонов Ozon. Данных не найдено !\nВы можете попробовать заново загрузить файлы')
-        sys.exit(1)
-    else:
-        data = str(datetime.datetime.now())
-        data = data[:data.find(" ")]
-        for i in range(len(paths)):
-            success = False
-            while not success:
-                try:
-                    if data in paths[i]:
-                        paths[i] = paths[i].replace("~${0} ".format(data),"")
-                    a = parseExcelOzon(path="./pool/SexOptovik/Ozon/{0}".format(paths[i]))
-                    print('{0} / name: {1}                  / cols: {2} >> {3}'.format(i + 1, paths[i][paths[i].find(" ")+1:], len(a), a))
-                    success = True
-                except PermissionError:
-                    input("[!] Закройте файл {0} и нажмите Enter".format(paths[i][paths[i].find(" ")+1:]))
-                except Exception as ex:
-                    print("[!] Произошла непредвиденная ошибка.\nПодробнее: {0} при обработке {1} файла".format(ex, paths[i]))
-                    sys.exit(1)
-
-
-
-def folderFilesGoogle(folderId='1COxI8zZlgQgLN_XLmOvARZ6Oc1KDQTC-'):
-    CLIENT_SECRET_FILE = '.\client_secrets.json'
-    API_NAME = 'drive'
-    API_VERSION = 'v3'
-    SCOPES = ['https://www.googleapis.com/auth/drive']
-    _COUNT_TRIES_BEFORE_EXIT = 2
-    success = False
-    _try = 1
-    while not success:
-        try:
-            service = Create_Service(CLIENT_SECRET_FILE, API_NAME, API_VERSION, SCOPES)
-
-            page_token = None
-            response = service.files().list(q=f"'{folderId}' in parents",
-                                                  spaces='drive',
-                                                  fields='nextPageToken, files(id, name)',
-                                                  pageToken=page_token).execute()
-
-
-            #query = f"parents = '{folderId}'"
-            #response = service.files().list(q=query).execute()
-            files = response.get('files')
-            if not files:
-                print('На диске нет папок.')
-            else:
-                df = pd.DataFrame(files)
-                print("Найдено: \n{0}".format(df))
-                time.sleep(1.5)
-                file_names = [x['name'] for x in files]
-                files_ids = [x['id'] for x in files]
-                main.Functions.google_driver(google_ids=files_ids,
-                                             file_names=file_names,
-                                             path_os_type='./pool/SexOptovik/Ozon', service= service)
-            success=True
-        except OSError as ex:
-            input(f'Ошибка! {ex}.\nПроверьте соединение и нажмите любую клавишу.')
-            if _try > _COUNT_TRIES_BEFORE_EXIT:
-                _try += 1
-            else:
-                print(f'Это уже {_try} попытка. \n'
-                      f'Попробуйте проверить данные и перезапустить программу)')
-                sys.exit(0)
-        except httplib2.error.ServerNotFoundError:
-            input('Проверьте соединение и нажмите любую клавишу')
-        except google.auth.exceptions.RefreshError:
-            print('Токен устарел. Необходимо произвести замену токена.')
-            if os.path.isfile('./token_drive_v3.pickle'):
-                os.remove('./token_drive_v3.pickle')
-                print('Устаревший токен успешно удален. Необходимо пройти авторизацию заново.')
-                time.sleep(3)
-            else:
-                print('Файл токена не найден в текущем местоположении. Выберите его самостоятельно')
-                path_token = main.Functions.getFolderFile(0, item=' файл токена google')
-                os.remove(path_token)
-        time.sleep(1.5)
-
-    return
-
+import SexOptovik_ozon
 if __name__ == '__main__':
-    folderFilesGoogle()
-    #startParseOzon()
+    a = SexOptovik_ozon.SexOptovik_ozon(abs_path=os.getcwd(),sellerCode='1168',provider='')
+
+
 
 
 

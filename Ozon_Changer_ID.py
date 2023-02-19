@@ -34,7 +34,7 @@ class OzonChangerID():
                 if c < 2:
                     c += 1
                 else:
-                    articular = main.Functions.clean_for_data(row[1].value, seller_code=self.seller_code, shortArticular=False)
+                    articular = main.Functions.cleanArticul(row[1].value, seller_code=self.seller_code, shortArticular=False)
                     if articular[0]:
                         articuls.add(articular[1])
                     else:

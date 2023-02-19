@@ -41,6 +41,7 @@ all_providers = [
     'sex_optovik'
 ]
 
+
 class Functions:
     provider = ''
     seller_code = ''
@@ -96,74 +97,6 @@ class Functions:
         else:
             return filedialog.askopenfilename()
 
-    def init_file(file_id, file_name):
-        # do something with the file
-        print("Initializing file %s with id %s" % (file_name, file_id))
-
-    def get_drive_service():
-        # use your own method to get google drive service
-        return None
-    @staticmethod
-    def folderFilesGoogle(folderId='1Aqfh5m3KjVk_zBmQJ_7Dz6uHvn8CeEuM'):
-        CLIENT_SECRET_FILE = '.\client_secrets.json'
-        API_NAME = 'drive'
-        API_VERSION = 'v3'
-        SCOPES = ['https://www.googleapis.com/auth/drive']
-        _COUNT_TRIES_BEFORE_EXIT = 2
-        success = False
-        _try = 1
-        while not success:
-            try:
-                service = Create_Service(CLIENT_SECRET_FILE, API_NAME, API_VERSION, SCOPES)
-                page_token = None
-                response = service.files().list(q="'%s' in parents" % folder_id,
-                                                      spaces='drive',
-                                                      fields='nextPageToken, files(id, name)',
-                                                      pageToken=page_token).execute()
-                for file in response.get('files', []):
-                    init_file(file['id'], file['name'])
-                page_token = response.get('nextPageToken', None)
-
-                while page_token is not None:
-                    response = drive_service.files().list(q="'%s' in parents" % folder_id,
-                                                          spaces='drive',
-                                                          fields='nextPageToken, files(id, name)',
-                                                          pageToken=page_token).execute()
-                    for file in response.get('files', []):
-                        init_file(file['id'], file['name'])
-                    page_token = response.get('nextPageToken', None)
-                query = f"parents = '{folderId}'"
-                response = service.files().list(q=query).execute()
-                files = response.get('files')
-                if not files:
-                    print('На диске нет папок.')
-                else:
-                    df = pd.DataFrame(files)
-                    print(df)
-            except OSError as ex:
-                input(f'Ошибка! {ex}.\nПроверьте соединение и нажмите любую клавишу.')
-                if _try > _COUNT_TRIES_BEFORE_EXIT:
-                    _try += 1
-                else:
-                    print(f'Это уже {_try} попытка. \n'
-                          f'Попробуйте проверить данные и перезапустить программу)')
-                    sys.exit(0)
-            except httplib2.error.ServerNotFoundError:
-                input('Проверьте соединение и нажмите любую клавишу')
-            except google.auth.exceptions.RefreshError:
-                print('Токен устарел. Необходимо произвести замену токена.')
-                if os.path.isfile('./token_drive_v3.pickle'):
-                    os.remove('./token_drive_v3.pickle')
-                    print('Устаревший токен успешно удален. Необходимо пройти авторизацию заново.')
-                    time.sleep(3)
-                else:
-                    print('Файл токена не найден в текущем местоположении. Выберите его самостоятельно')
-                    path_token = Functions.getFolderFile(0, item=' файл токена google')
-                    os.remove(path_token)
-                    # return
-            #print(f'Успешно загружено {COUNT_DOWLOADED} / {len(google_ids)} файлов\n')
-            time.sleep(1.5)
-
     @staticmethod
     def getFolderFile(type, item):
         time.sleep(0.3)
@@ -184,25 +117,51 @@ class Functions:
         print(driver)
 
     @staticmethod
-    def clean_for_data(articular, seller_code, shortArticular=True):
+    def subForCleanData(sellerCode, marketplace):
+        set_of_post_codes = []
+        if marketplace == 'wb':
+            if sellerCode == '1277':
+                set_of_post_codes = [
+                    '-1168', '-1299', '-1366'
+                ]
+            elif sellerCode == '1299':
+                set_of_post_codes = [
+                    '-1168', '-1277', '-1366'
+                ]
+            elif sellerCode == '1366':
+                set_of_post_codes = [
+                    '-1168', '-1299', '-1277'
+                ]
+        elif marketplace == 'oz':
+            if sellerCode == '1269':
+                set_of_post_codes = [
+                    '-1168', '-1299', '-1277',  # wb
+                    '-1249', '-1292', '-1366'  # oz
+                ]
+            elif sellerCode == '1249':
+                set_of_post_codes = [
+                    '-1168', '-1299', '-1277',  # wb
+                    '-1269', '-1292', '-1366'  # oz
+                ]
+            elif sellerCode == '1366':
+                set_of_post_codes = [
+                    '-1168', '-1299', '-1277',  # wb
+                    '-1269', '-1292', '-1249'  # oz
+                ]
+        else:
+            set_of_post_codes = ['YOUR POST CODE NOT FOUND.\nContinue with all items']
+        return set_of_post_codes
+
+    @staticmethod
+    def cleanArticul(articular, seller_code, shortArticular=True, marketplace='wb'):
         temp = ''.join(articular)
         articular = ''.join(articular)
         original_code = seller_code
         new_articular = current_code = ''
         if shortArticular:
-            if seller_code == '1277':
-                set_of_post_codes = [
-                    '-1168', '-1299', '-1366'
-                ]
-            elif seller_code == '1299':
-                set_of_post_codes = [
-                    '-1168', '-1277', '-1366'
-                ]
-            elif seller_code == '1366':
-                set_of_post_codes = [
-                    '-1168', '-1299', '-1277'
-                ]
-            else: set_of_post_codes = ['YOUR POST CODE NOT FOUND.\nContinue with all items']
+            set_of_post_codes = Functions.subForCleanData(sellerCode=seller_code,
+                                      marketplace=marketplace)
+
         else:
             set_of_post_codes = [
                 'Z1C1A0t-', 'W1C1Ayt', 'Z1C1L', 'Z1C1K', 'W1C1K', 'W1C1V', 'Z1C1A', 'W1C1L', 'W1C1A', 'Z1C1V'
@@ -239,21 +198,45 @@ class Functions:
         else:
             return True, new_articular
 
-    def getData(self, path, seller_code, _row = 3, checkBrand = ''):
+    def getDataXslx(self, path, sellerCode, _row=3, checkBrand=''):
         articuls = set()
         errors = set()
         lieBrands = set()
         xlsx = openpyxl.load_workbook(path)
         sheet = xlsx.active
         for row in sheet.iter_rows(2, sheet.max_row):
-
-            articular = self.clean_for_data(row[_row].value, seller_code=seller_code)
+            articular = self.cleanArticul(row[_row].value, seller_code=sellerCode)
             if articular[0]:
                 articuls.add(articular[1])
                 if row[0].value is not None and row[0].value.lower() in checkBrand.lower():
                     lieBrands.add(articular[1])
             else:
                 errors.add(articular[1])
+        return articuls, errors, lieBrands
+
+    def getDataCsv(self, path, **kwargs):
+        sellerCode = kwargs.get('sellerCode', '')
+        index = kwargs.get('index', 0)
+        checkBrand = kwargs.get('checkBrand', '')
+        marketplace = kwargs.get('marketplace', 'oz')
+
+
+        articuls = set()
+        errors = set()
+        lieBrands = set()
+        with open(path, encoding="utf8") as f:
+            title = [x.lower().replace('"', '') for x in f.readline().split(';')]
+            brandIndex = title.index('бренд')
+
+            for line in f.readlines():
+                line = [x.replace('"', '') for x in line.split(";")]
+                articular = self.cleanArticul(line[index], seller_code=sellerCode, marketplace=marketplace)
+                if articular[0]:
+                    articuls.add(articular[1])
+                    if line[brandIndex] is not None and line[brandIndex].lower() in checkBrand.lower():
+                        lieBrands.add(articular[1])
+                else:
+                    errors.add(articular[1])
         return articuls, errors, lieBrands
 
     @staticmethod
@@ -410,12 +393,6 @@ class Functions:
             return 'Комплекты БДСМ'
         else:
             return 'Наборы игрушек для взрослых'
-
-    @staticmethod
-    def barcodes(SET_OF_BARCODES):
-        SET_OF_NEW_BARCODES = set()
-
-        return barcodes
 
     @staticmethod
     def getSex(data):
@@ -767,7 +744,7 @@ class Functions:
             print(text)
 
     @staticmethod
-    def google_driver(google_ids=[], file_names=[], path_os_type='./', service = None):
+    def google_driver(google_ids=[], file_names=[], path_os_type='./', service=None):
         _COUNT_TRIES_BEFORE_EXIT = 2
         print('')
         COUNT_DOWLOADED = 0
@@ -820,10 +797,15 @@ class Functions:
                     path_token = Functions.getFolderFile(0, item=' файл токена google')
                     os.remove(path_token)
                     # return
+            except Exception as ex:
+                print('\n[!]Произошла непредвиденная ошибка\n{0}'.format(ex))
+                sys.exit(1)
             print(f'Успешно загружено {COUNT_DOWLOADED} / {len(google_ids)} файлов\n')
             time.sleep(1.5)
+
     def googleUpload(self):
         pass
+
     def uploadFromFile(self, file_path, seller_code='', isSet=True):
         if isSet:
             set_res = set()
@@ -1476,7 +1458,6 @@ class SexOptovik(Functions):
             res.remove('Набор игрушек для взрослых')
         return res[0], data.replace(' #', '.')
 
-
     def upload_cats(self):
         status_file = os.path.isfile('./pool/SexOptovik/google_downloaded/wb_cats.txt')
         if status_file:
@@ -1580,8 +1561,8 @@ class SexOptovik(Functions):
         #    sys.exit(0)
 
         print('Считаю новые товары...')
-        set_of_data_artics, errors_set_data_artics = Functions.getData(self, PATH_GOOGLE_XLSX,
-                                                                       seller_code=self.seller_code)
+        set_of_data_artics, errors_set_data_artics = Functions.getDataXslx(self, PATH_GOOGLE_XLSX,
+                                                                           sellerCode=self.seller_code)
         blacklist_brands = Functions.uploadFromFile(self,
                                                     file_path='./pool/SexOptovik/google_downloaded/blacklist_brands_wb.txt',
                                                     isSet=True)
@@ -2072,8 +2053,9 @@ class OzonParser(Functions):
         cats_arr = self.initialize_cats()
         BANNED_BRANDS = self.initialize_blacklist_of_brands()
         PATH_GOOGLE_XLSX = './pool/SexOptovik/Ozon/oz-1277.csv'
-        set_of_data_artics, errors_set_data_artics = Functions.getData(self, PATH_GOOGLE_XLSX,
-                                                                       seller_code=self.seller_code, marketplace='oz')
+        set_of_data_artics, errors_set_data_artics = Functions.getDataXslx(self, PATH_GOOGLE_XLSX,
+                                                                           sellerCode=self.seller_code,
+                                                                           marketplace='oz')
         with open('./SexOptovik/all_prod_info.csv', 'r') as main_data_file:
             COUNT_PARSED_ITEMS = COUNT_PROBLEMS_ITEMS = 0
             for rows in main_data_file:
@@ -2119,11 +2101,14 @@ def setup_providers(choosed_providers):
 
 CONST_AV_CODES = {'1277', '1299', '1366'}
 
+
 @staticmethod
 def create_all_folders():
     if not Path.exists(Path(os.getcwd(), 'pool')):
         os.mkdir(Path(os.getcwd(), 'pool'))
     return 0
+
+
 def checked_value():
     VALUES = {1: 'sexopt', 2: 'kema', 3: 'astkol'}
     success = False
@@ -2137,6 +2122,7 @@ def checked_value():
     except ValueError:
         print('[!] Вы ввели не число')
     return res
+
 
 if __name__ == '__main__':
 
@@ -2160,7 +2146,6 @@ if __name__ == '__main__':
     elif val == 3:
         pass
 
-
     # OzonParser = OzonParser(f'{seller_code}')
     # OzonParser.start_parsing()
 
@@ -2171,8 +2156,6 @@ if __name__ == '__main__':
     # oz_ch = Ozon_Changer_ID.OzonChangerID(seller_code)
     # oz_ch.start()
 
-
-
     # выбор поставщика
     func_code = get_provider()
     print(f'Выбрано ->  {func_code}.')
@@ -2180,12 +2163,11 @@ if __name__ == '__main__':
 
     input()
 
-
     barc = Functions.getFolderFile(0, ' штрихкоды ')
     barcodes = Functions.uploadBarcodes(barc).copy()
 
     data_path = Functions.getFolderFile(0, ' уже добавленные товары ')
-    data_set = Functions.getData(data_path, seller_code='1277')
+    data_set = Functions.getDataXslx(data_path, sellerCode='1277')
 
     kema = kema_parser('1366', barcodes, data_set)
     a = Functions.workWithExcel(1)
