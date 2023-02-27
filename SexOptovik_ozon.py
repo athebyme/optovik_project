@@ -8,26 +8,21 @@ import pandas as pd
 import main
 import google.auth
 import httplib2
-from Google import Create_Service
 
+
+from config.Config import Config
 
 class SexOptovik_ozon(main.Functions):
-    sellerCode = ''
-    service = None
-    shop = ''
-    def createGoogleDriveAPI(self):
-        CLIENT_SECRET_FILE = '.\client_secrets.json'
-        API_NAME = 'drive'
-        API_VERSION = 'v3'
-        SCOPES = ['https://www.googleapis.com/auth/drive']
-        self.service = Create_Service(CLIENT_SECRET_FILE, API_NAME, API_VERSION, SCOPES)
+    sellerCode = Config.sellerId
+    service = Config.service
+    shop = Config.shopName
 
     def __init__(self, sellerCode, abs_path, provider):
-        super().__init__(abs_path, sellerCode, provider)
         self.sellerCode = sellerCode
-        self.createGoogleDriveAPI()
         #self.downloadGoogleFolder()
         self.startParsing()
+        self.downloadGoogleFolder()
+        self.initColumns()
 
     def parseExcelOzon(self, path=""):
         xlsx_file = pd.read_excel(open(path, 'rb'), sheet_name='Шаблон для поставщика')
@@ -47,56 +42,27 @@ class SexOptovik_ozon(main.Functions):
 
         if columnsExcel is None:
             columnsExcel = {}
-        exists_goods = {'1168A': {'shop': 'Amare', 'id': '1LOrCyNl9n6WxeL-yumr0E7PCdXN3pT6G'},
-                        '1366B': {'shop': 'BANANZZA', 'id': '15OXYq0aRQVJPlH7eQ2eSs0y_R8jOSM7r'},
-                        '1269L': {'shop': 'Lasciva', 'id': '1UBFQquHyn6v5zmzce6CjAqpmTWuwkqNJ'},
-                        '1168S': {'shop': 'SomniumFace', 'id': '1DtVPArbA1LKircZBrVR2ky8xSOxeEBSs'},
-                        '1292W': {'shop': 'Wisteria', 'id': '1QeL6_RNYXYzUGFP4lzhX2dQpRJH2g1Ae'}
-                        }
-        success = False
-        if self.sellerCode == '1168':
-            while not success:
-                try:
-                    choosen = int(input('\nКакой из магазинов вы желаете выбрать ?:\n0: Amare\n1:Somnium Face\n:'))
-                    if choosen < 2 and choosen >= 0:
-                        success = True
-                    else:
-                        print('\n[!] Выберите число 0 или 1')
-                except ValueError:
-                    print('\n[!] Вы ввели не число !')
-                except Exception as ex:
-                    print('\n[!]Произошла непредвиденная ошибка')
-                    sys.exit(1)
-            main.Functions.google_driver(google_ids=[exists_goods[self.sellerCode + 'A']['id']],
-                                         file_names=[exists_goods[self.sellerCode + 'A']['shop'] + '_OZ.csv'],
-                                         path_os_type='./pool/SexOptovik/google_downloaded',
-                                         service=self.service) if choosen == 0 else \
-                main.Functions.google_driver(google_ids=[exists_goods[self.sellerCode + 'S']['id']],
-                                             file_names=[exists_goods[self.sellerCode + 'S']['shop'] + "_OZ.csv"],
-                                             path_os_type='./pool/SexOptovik/google_downloaded',
-                                             service=self.service)
 
-            if choosen == 0: self.shop = exists_goods[self.sellerCode+'A']['shop']
-            else:    self.shop = exists_goods[self.sellerCode+'S']['shop']
-        else:
-            main.Functions.google_driver(google_ids=[exists_goods[self.sellerCode]['id']],
-                                         file_names=[exists_goods[self.sellerCode]['shop'] + '_OZ.csv'],
+        main.Functions.google_driver(google_ids=[Config.urlExistItems],
+                                         file_names=[f"{Config.shopName}_OZ.csv"],
                                          path_os_type='./pool/SexOptovik/google_downloaded',
-                                         service=self.service)
-            self.shop = exists_goods[self.sellerCode]['shop']
+                                         service=Config.service)
         print('Считаю новые товары...')
-        PATH_GOOGLE_XLSX = f'./pool/SexOptovik/google_downloaded/{exists_goods[self.sellerCode+self.shop[:1]]["shop"]}_OZ.csv'
+        PATH_GOOGLE_XLSX = f'./pool/SexOptovik/google_downloaded/{Config.shopName}_OZ.csv'
         checkBrand = "Lasciva Piter Anal Wisteria Somnium Face"
 
         goods, errors, lieBrands = main.Functions.getDataCsv(self,
-                                  path=f"C:\csv_parser_wb\pool\SexOptovik\google_downloaded\{self.shop}_OZ.csv",
+                                  path=f"C:\csv_parser_wb\pool\SexOptovik\google_downloaded\{Config.shopName}_OZ.csv",
                                   sellerCode='1168',
                                   checkBrand='',
                                   marketplace='oz')
-        df = pd.DataFrame({'OK': goods, 'ERRORS': errors, 'LIE': lieBrands})
+
+
+        df = pd.DataFrame({'OK': len(goods), 'ERRORS': len(errors), 'LIE': len(lieBrands)}, index=['>>'])
         print(df)
+        print(f"\n\n{pd.DataFrame({'errors': list(errors)})}")
         opisanie = main.Functions.uploadFromFile(self, file_path='./SexOptovik/all_prod_d33_.csv', isSet=False)
-        
+
 
     def initColumns(self):
         paths = [f for f in os.listdir("./pool/SexOptovik/Ozon") if f.endswith(".xlsx")]
@@ -122,9 +88,7 @@ class SexOptovik_ozon(main.Functions):
                     except PermissionError:
                         input("[!] Закройте файл {0} и нажмите Enter".format(paths[i][paths[i].find(" ") + 1:]))
                     except Exception as ex:
-                        print("[!] Произошла непредвиденная ошибка.\nПодробнее: {0} при обработке {1} файла".format(ex,
-                                                                                                                    paths[
-                                                                                                                        i]))
+                        print("[!] Произошла непредвиденная ошибка.\nПодробнее: {0} при обработке {1} файла".format(ex,paths[i]))
                         sys.exit(1)
 
     def downloadGoogleFolder(self, folderId='1COxI8zZlgQgLN_XLmOvARZ6Oc1KDQTC-'):

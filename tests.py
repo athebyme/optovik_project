@@ -1,20 +1,15 @@
 from __future__ import print_function
 
-import datetime
-import io
-import math
+import os
 import sys
-import time
-
-import google.auth
-import httplib2
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaIoBaseDownload
 
 # print(input())
 import openpyxl
-import os
+from py._builtin import execfile
+
+import config.Config
+import main
+
 
 # xlsx = openpyxl.load_workbook(os.getcwd()+'\\report_2022_7_29.xlsx')
 # sheet = xlsx.active
@@ -22,8 +17,6 @@ import os
 #
 # for row in sheet.iter_rows(1,sheet.max_row):
 #     print(row[3].value)
-
-
 # set_of_post_codes = [
 #     'Z1C1A0t-', 'W1C1Ayt', 'Z1C1L', 'Z1C1K', 'W1C1K', 'W1C1V', 'Z1C1A', 'W1C1L', 'W1C1A'
 # ]
@@ -32,7 +25,6 @@ import os
 #     pass
 # else:
 #     print(set_of_post_codes.index(item))
-
 # from pyfiglet import Figlet
 #
 # @staticmethod
@@ -45,8 +37,6 @@ import os
 #
 #
 # showText('DNIS')
-
-
 #
 # def download_file(real_file_id):
 #     """Downloads a file
@@ -84,8 +74,6 @@ import os
 #
 # if __name__ == '__main__':
 #     download_file(real_file_id='1iOAtmIzmDJZZ1vRkWC0tOiyod6uP5ZugRI1hoJhqXjc')
-
-
 # from itertools import product
 #
 # @staticmethod
@@ -173,9 +161,7 @@ import os
 #     return res[0], data.replace(' #','.')
 #
 # print(init_category('Красный блесиящий стреп H.E.L. Essie'))
-
 # print(os.path.exists('./pool/SexOptovik/google_downloaded/wb_cats2.txt'))
-
 #
 #
 # country = 'Китай-США' # Страна производства
@@ -304,7 +290,6 @@ import os
 # r = []
 # r.append(size.get('123'))
 # print(size.get('depth'), r)
-
 # СОХРАНИТЬ
 # @staticmethod
 # def init_category(data, cats_wb):
@@ -392,7 +377,6 @@ import os
 #     if len(res) == 0:
 #         res.append('Наборы игрушек для взрослых')
 #     return res[0], data.replace(' #', '.')
-
 # def start(text):
 #     if ', ' not in text:
 #         _split_parametr = '  '
@@ -411,8 +395,6 @@ import os
 #             data.append(text)
 #         return data
 # print(start('длина 17,75 см,диаметр 11,5 см'))
-
-
 # import re
 # @staticmethod
 # def for_sizes_parse(array_4XL):
@@ -603,18 +585,9 @@ import os
 #         return res
 #     return text
 # print(parse_sizes('диаметр шариков  - 2,8 см, вес белого - 14 г, вес серого - 29 г, вес темно-серого 36 г, вес черного 55 г',type = 'all'))
-
-
-import re
-
 # a = ''
 # a = float(10)
 # print(a)
-
-import pathlib as Path
-
-import main
-from Google import Create_Service
 
 
 # path = './shrih/Список штрихкодов (4).xlsx'
@@ -1099,9 +1072,46 @@ def photo(path='', _row=0, checkBrand='', seller_code=''):
 #             saver[2].append(s)
 #     main.Functions().save_data(saver, seller_code='1366', path=r"C:\Users\Anton\Desktop")
 
+from config import shopConfs
+def getConfig(sellerCode: str):
+    conf = None
+    v = -1
+    if not os.path.isdir('./config'): os.mkdir('./config')
+    if not os.path.isdir('./config/shopConfs'): os.mkdir('./config/shopConfs')
+    if sellerCode == '1168':
+        success = False
+        while not success:
+            try:
+                v = int(input('Выберите магазин:\n[0] - Amare\n[1] - Somnium Face\n:'))
+                if 0 <= v <= 1 : success = True
+                else: print('[!] Вы ввели недопустимое значение')
+            except ValueError:
+                print('[!] Введите число - 0 или 1')
+        if v == 1:
+            from config.shopConfs.SomniumfaceConfig import SomniumfaceConfig
+            conf = SomniumfaceConfig()
+        else:
+            from config.shopConfs.AmareConfig import AmareConfig
+            conf = AmareConfig()
+    elif sellerCode == '1269':
+        from config.shopConfs.LascivaConfig import LascivaConfig
+        conf = LascivaConfig()
+    elif sellerCode == '1292':
+        from config.shopConfs.WisteriaConfig import WisteriaConfig
+        conf = WisteriaConfig()
+    elif sellerCode == '1366':
+        from config.shopConfs.BananzzaConfig import BananzzaConfig
+        conf = BananzzaConfig()
+    return conf
+
 import SexOptovik_ozon
+
 if __name__ == '__main__':
-    a = SexOptovik_ozon.SexOptovik_ozon(abs_path=os.getcwd(),sellerCode='1168',provider='')
+    test = int(input())
+    getConfig(str(test))
+    a = SexOptovik_ozon.SexOptovik_ozon(abs_path=os.getcwd(),
+                                        sellerCode='1168',
+                                        provider='')
 
 
 

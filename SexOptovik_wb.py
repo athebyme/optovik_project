@@ -3,6 +3,7 @@ from itertools import product
 from pathlib import Path
 
 import google.auth.exceptions
+
 import main
 import os
 import re
@@ -10,7 +11,7 @@ import shutil
 import sys
 import time
 
-class SexOptovik():
+class SexOptovik(main.Functions):
     cwd = os.getcwd()
     optovik_items = {}
     current_cats_wb = set()
@@ -511,6 +512,7 @@ class SexOptovik():
                 time.sleep(5)
                 sys.exit(0)
 
+    @property
     def init_stocks(self):
         set_stocks = set()
         url = 'http://sexoptovik.ru/files/all_prod_prices__.csv'
@@ -668,7 +670,7 @@ class SexOptovik():
             except PermissionError:
                 input('Пожалуйста, закройте все открытые файлы из папки на нажмите любую клавишу.\n')
         count_items_100 = 0
-        set_stocks = self.init_stocks()
+        set_stocks = self.init_stocks
 
         with open(file_path) as file:
             ERRORS_ITEMS_BANNED_BRANDS = set()

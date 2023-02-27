@@ -77,19 +77,19 @@ class Functions:
 
     @staticmethod
     def getSellerCode():
-        time.sleep(0.3)
+        time.sleep(0.1)
         seller_code = input('Введите код продавца: ')
         return seller_code
 
     @staticmethod
     def getProvider():
-        time.sleep(0.3)
+        time.sleep(0.1)
         provider = input('Введите название поставщика: ')
         return provider
 
     @staticmethod
     def getPath(type):
-        time.sleep(1)
+        time.sleep(0.1)
         root = tk.Tk()
         root.withdraw()
         if type == 1:
