@@ -2106,7 +2106,8 @@ CONST_AV_CODES = {'1277', '1299', '1366'}
 def create_all_folders():
     if not Path.exists(Path(os.getcwd(), 'pool')):
         os.mkdir(Path(os.getcwd(), 'pool'))
-    return 0
+    
+    return
 
 
 def checked_value():

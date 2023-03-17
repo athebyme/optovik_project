@@ -1105,13 +1105,31 @@ def getConfig(sellerCode: str):
     return conf
 
 import SexOptovik_ozon
+from config.Config import Config
 
-if __name__ == '__main__':
+
+def getCategoryFilesPaths(path):
+    paths = [f for f in os.listdir(path) if f.endswith(".xlsx")]
+    if len(paths) == 0:
+        print(
+            '[!] Проверьте файлы в папке шаблонов Ozon. Данных не найдено !\nВы можете попробовать заново загрузить файлы')
+        sys.exit(1)
+    return paths
+
+def startOzon():
     test = int(input())
     getConfig(str(test))
-    a = SexOptovik_ozon.SexOptovik_ozon(abs_path=os.getcwd(),
-                                        sellerCode='1168',
-                                        provider='')
+    return SexOptovik_ozon.SexOptovik_ozon(abs_path=os.getcwd(),
+                                        sellerCode=Config.sellerId,
+                                        provider=Config.shopName)
+
+if __name__ == '__main__':
+
+    # files = getCategoryFilesPaths(path=r"C:\Users\Anton\Desktop\Folder WB")
+    # for i in files:
+    #     path = rf"C:\Users\Anton\Desktop\Folder WB\{i}"
+
+    startOzon()
 
 
 

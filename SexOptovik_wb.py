@@ -11,7 +11,7 @@ import shutil
 import sys
 import time
 
-class SexOptovik(main.Functions):
+class SexOptovik():
     cwd = os.getcwd()
     optovik_items = {}
     current_cats_wb = set()
