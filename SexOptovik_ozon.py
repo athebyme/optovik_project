@@ -10,8 +10,8 @@ import main
 import google.auth
 import httplib2
 
-
 from config.Config import Config
+
 
 class SexOptovik_ozon(main.Functions):
     sellerCode = Config.sellerId
@@ -24,6 +24,7 @@ class SexOptovik_ozon(main.Functions):
 
     def printer(self, text):
         return print(text)
+
     def parseExcelOzon(self, path=""):
         xlsx_file = pd.read_excel(open(path, 'rb'), sheet_name='Шаблон для поставщика')
         params = {}
@@ -37,48 +38,47 @@ class SexOptovik_ozon(main.Functions):
                     continue
                 params[index] = {'name': cell, 'required': True if '*' in cell else False}
             return params
+
     def start(self):
         from config.presets.FillPreset import FillPreset
         from config.Config import Config
         from config.presets.AnyData import AnyData
         A = AnyData()
-        print(self.matchType(name='', s=A.alternative_names))
-        print()
-
+        print(self.getCloset(word='духи', s=A.tnvd))
 
         preset = FillPreset()
-        preset_instance = preset.create(content='',
-                                        pack_height=30,
-                                        main_photo='',
-                                        max_temp=0,
-                                        pack_count=1,
-                                        pack_width=15,
-                                        pack_length=10,
-                                        NDS=0,
-                                        effect='Без эффекта',
-                                        alternative_name='',
-                                        model_name='',
-                                        brand=Config.shopName,
-                                        danger_class='Не опасен',
-                                        cost=99999,
-                                        min_temp=0,
-                                        pack_weight=300,
-                                        commercial_type='',
-                                        article_number='',
-                                        volume=0,
-                                        expire_date=365,
-                                        type=''
-                                        )
-        print(preset_instance)
-        self.getStockList()
-        self.downloadGoogleFolder(folderId='1COxI8zZlgQgLN_XLmOvARZ6Oc1KDQTC-')
+        # preset_instance = preset.create(content='',
+        #                                 pack_height=30,
+        #                                 main_photo='',
+        #                                 max_temp=0,
+        #                                 pack_count=1,
+        #                                 pack_width=15,
+        #                                 pack_length=10,
+        #                                 NDS=0,
+        #                                 effect='Без эффекта',
+        #                                 alternative_name='',
+        #                                 model_name='',
+        #                                 brand=Config.shopName,
+        #                                 danger_class='Не опасен',
+        #                                 cost=99999,
+        #                                 min_temp=0,
+        #                                 pack_weight=300,
+        #                                 commercial_type='',
+        #                                 article_number='',
+        #                                 volume=0,
+        #                                 expire_date=365,
+        #                                 type=''
+        #                                 )
+        #print(preset_instance)
+        #self.getStockList()
+        #self.downloadGoogleFolder(folderId='1COxI8zZlgQgLN_XLmOvARZ6Oc1KDQTC-')
         pathCategories = self.getCategoryFilesPaths()
 
         reqParams = set()
         for i in pathCategories:
-           par = self.allFilesFunction(path=fr"./pool/SexOptovik/Ozon/{i}")
-           for k, v in par.items():
-               reqParams.add(v['name'])
+            par = self.allFilesFunction(path=fr"./pool/SexOptovik/Ozon/{i}")
+            for k, v in par.items():
+                reqParams.add(v['name'])
         print(reqParams)
 
     def getStockList(self, columnsExcel=None):
@@ -87,25 +87,23 @@ class SexOptovik_ozon(main.Functions):
             columnsExcel = {}
 
         main.Functions.google_driver(google_ids=[Config.urlExistItems],
-                                         file_names=[f"{Config.shopName}_OZ.csv"],
-                                         path_os_type='./pool/SexOptovik/google_downloaded',
-                                         service=Config.service)
+                                     file_names=[f"{Config.shopName}_OZ.csv"],
+                                     path_os_type='./pool/SexOptovik/google_downloaded',
+                                     service=Config.service)
         print('Считаю новые товары...')
         PATH_GOOGLE_XLSX = f'./pool/SexOptovik/google_downloaded/{Config.shopName}_OZ.csv'
         checkBrand = "Lasciva Piter Anal Wisteria Somnium Face"
 
         goods, errors, lieBrands = main.Functions.getDataCsv(self,
-                                  path=fr"C:\csv_parser_wb\pool\SexOptovik\google_downloaded\{Config.shopName}_OZ.csv",
-                                  sellerCode='1168',
-                                  checkBrand='',
-                                  marketplace='oz')
-
+                                                             path=fr"C:\csv_parser_wb\pool\SexOptovik\google_downloaded\{Config.shopName}_OZ.csv",
+                                                             sellerCode='1168',
+                                                             checkBrand='',
+                                                             marketplace='oz')
 
         df = pd.DataFrame({'OK': len(goods), 'ERRORS': len(errors), 'LIE': len(lieBrands)}, index=['>>'])
         self.printer(df)
         self.printer(f"\n\n{pd.DataFrame({'errors': list(errors)})}")
         opisanie = main.Functions.uploadFromFile(self, file_path='./SexOptovik/all_prod_d33_.csv', isSet=False)
-
 
     def getCategoryFilesPaths(self):
         paths = [f for f in os.listdir("./pool/SexOptovik/Ozon") if f.endswith(".xlsx")]
@@ -115,7 +113,7 @@ class SexOptovik_ozon(main.Functions):
             sys.exit(1)
         return paths
 
-    def test(self, path:str):
+    def test(self, path: str):
         data = str(datetime.datetime.now())
         data = data[:data.find(" ")]
         if data in path:
@@ -138,6 +136,7 @@ class SexOptovik_ozon(main.Functions):
                                                                                                             path))
                 sys.exit(1)
         return params
+
     def downloadGoogleFolder(self, folderId):
 
         if not os.path.exists(r'./pool/SexOptovik/Ozon'):
@@ -192,16 +191,6 @@ class SexOptovik_ozon(main.Functions):
             time.sleep(1.5)
         return
 
-    types = {'Анальная пробка', 'Анальный вибратор', 'Анус', 'Вибратор', 'Ротик', 'Расширитель',
-                      'Вагина', 'Мастурбатор', 'Расширитель уретральный', 'Подушка для любви', 'Анальный душ',
-                      'Клиторальный стимулятор', 'Фаллоимитатор', 'Вагинальный тренажер', 'Массажер простаты',
-                      'Наручники', 'Оковы', 'Кляп', 'Вагинальные шарики', 'Плетка', 'Стек БДСМ', 'Кисточка',
-                      'Насадка на член', 'Растяжитель мошонки', 'Эрекционное кольцо', 'Секс качели',
-                      'Страпон с поясом', 'Страпон на ремнях', 'Безремневой страпон', 'Зажимы для сосков',
-                      'Виброяйцо', 'Пульсатор', 'Стимулятор для точки G', 'Вибропуля', 'Насадка на стимулятор',
-                      'Мини вибратор', 'Фиксатор для рук и ног', 'Анальный стимулятор', 'Анальный массажер',
-                      'Анальный фаллоимитатор'}
-
     @staticmethod
     def measure_time(f):
         # Определяем вложенную функцию timed
@@ -220,11 +209,8 @@ class SexOptovik_ozon(main.Functions):
         # Возвращаем вложенную функцию timed
         return timed
 
-    @measure_time
     def matchType(self, name, s=None):
-        if s is None:
-            s = self.types
-        if not isinstance(name, str) or not isinstance(s, set):
+        if not isinstance(name, str) or not isinstance(s, set) or not s:
             return None
         # Инициализируем переменные для хранения лучшего совпадения и минимального расстояния
         best_match = None
@@ -240,3 +226,12 @@ class SexOptovik_ozon(main.Functions):
         # Возвращаем лучшее совпадение
         return best_match
 
+    @measure_time
+    def getCloset(self, word, s=None):
+        if not isinstance(word, str) or not isinstance(s, set) or not s:
+            return None
+        # Фильтруем слова из s с расстоянием Левенштейна <= 4
+        result = set(filter(lambda item: word.lower() in item.lower(), s))
+        print(result)
+        # Возвращаем лучшее совпадение из result
+        return self.matchType(name=word, s=result)
