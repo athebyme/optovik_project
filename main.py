@@ -1,20 +1,15 @@
-import codecs
-import socket
-from dataclasses import dataclass
+import json
 from pathlib import Path
 
-from googleapiclient.discovery import build
 import google.auth.exceptions
-import google_auth_oauthlib
 import httplib2.error
+import pandas
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from tkinter import filedialog
-from datetime import date
 from pyfiglet import Figlet
 
-import SexOptovik_wb
-import Kema
+import src.ExceptionService.Exceptions
 
 from Google import Create_Service
 from googleapiclient.http import MediaIoBaseDownload
@@ -28,11 +23,10 @@ import random
 import sys
 import time
 import tkinter as tk
-import urllib, requests
+import urllib
 import pandas as pd
 import shutil
 import io
-import glob
 
 all_providers = [
     'astkol',  # 0
@@ -52,11 +46,13 @@ class Functions:
     paths = []
     abs_path = os.getcwd()
 
-    def __init__(self, abs_path, sellerCode, provider):
-        self.provider = self.getProvider()
-        self.seller_code = self.getSellerCode()
-        self.paths = []
-
+    def __init__(self, needAuth=True):
+        if needAuth:
+            self.provider = self.getProvider()
+            self.seller_code = self.getSellerCode()
+            self.paths = []
+        else:
+            pass
     @staticmethod
     def uploadBarcodes(path, SET_OF_EXIST_BARCODES=set()):
         if path == '': return False
@@ -160,7 +156,7 @@ class Functions:
         new_articular = current_code = ''
         if shortArticular:
             set_of_post_codes = Functions.subForCleanData(sellerCode=seller_code,
-                                      marketplace=marketplace)
+                                                          marketplace=marketplace)
 
         else:
             set_of_post_codes = [
@@ -220,7 +216,6 @@ class Functions:
         checkBrand = kwargs.get('checkBrand', '')
         marketplace = kwargs.get('marketplace', 'oz')
 
-
         articuls = set()
         errors = set()
         lieBrands = set()
@@ -240,28 +235,28 @@ class Functions:
         return articuls, errors, lieBrands
 
     @staticmethod
-    def download_universal(url='', path_def=''):
+    def download_universal(url, path_def=''):
         try:
-            print(f'\n\nПытаюсь загрузить {url}\nПуть: {path_def}')
-            path = f'{path_def}/{url[url.rfind("/") + 1:]}'
-            excel_file = open(path, 'wb')
-            excel_file.write(urllib.request.urlopen(url).read())
-            excel_file.close()
+            if not isinstance(url, list): url = [url]
+            for link in url:
+                print(f'\n\nПытаюсь загрузить {link}\nПуть: {path_def}')
+                path = f'{path_def}/{link[link.rfind("/") + 1:]}'
+                excel_file = open(path, 'wb')
+                excel_file.write(urllib.request.urlopen(link).read())
+                excel_file.close()
         except OSError:
-            input(f'\nЗакройте файл {url[url.rfind("/") + 1:]}. И нажмите enter\n ')
-            print(f'\n\nПытаюсь загрузить {url}\nПуть: {path_def}')
-            path = f'{path_def}/{url[url.rfind("/") + 1:]}'
+            input(f'\nЗакройте файл {link[link.rfind("/") + 1:]}. И нажмите enter\n ')
+            print(f'\n\nПытаюсь загрузить {link}\nПуть: {path_def}')
+            path = f'{path_def}/{link[link.rfind("/") + 1:]}'
             try:
                 excel_file = open(path, 'wb')
-                excel_file.write(urllib.request.urlopen(url).read())
+                excel_file.write(urllib.request.urlopen(link).read())
                 excel_file.close()
                 return path
             except OSError:
-                print('Непредвиденная ошибка')
-                sys.exit(0)
-        else:
-            print(f'\n\nНовые товары {url} успешно загружены.\nПуть: {path}\n')
-            return path
+                raise src.ExceptionService.Exceptions.CustomError('Непредвиденная ошибка')
+        print(f'\n\nНовые товары {url} успешно загружены.\nПуть: {path}\n')
+        return path
 
     def downloadNewGoods(self, provider, abs_path):
 
@@ -441,43 +436,16 @@ class Functions:
         if len(t) > 5000:
             t = t[:5000]
             t = t[:t.rfind('.')]
-        t = t.replace('▪', '')
-        t = t.replace('°', '')
-        t = t.replace("\\", '')
-        t = t.replace('️', '')
-        t = t.replace('–', '')
-        t = t.replace('’', '')
-        t = t.replace('…', '.')
-        t = t.replace('x000D', '')
-        t = t.replace('¶', '')
-        t = t.replace('«', '"')
-        t = t.replace('»', '"')
-        t = t.replace('®', '')
-        t = t.replace('`', '"')
-        t = t.replace('_', '')
-        t = t.replace('”', '"')
-        t = t.replace('“', '"')
-        t = t.replace('™', '')
-        t = t.replace('=', '-')
-        t = t.replace('obj', '')
-        t = t.replace('—', '-')
-        t = t.replace('•', '')
-        t = t.replace('–', '-')
-        t = t.replace('	', ' ')
-        t = t.replace('´', '-')
-        t = t.replace('/', ';')
-        t = t.replace('<', ' менее ')
-        t = t.replace('>', ' более ')
-        t = t.replace('í', 'i')
-        t = t.replace('à', 'a')
-        t = t.replace('é', 'e')
-        t = t.replace('±', '+-')
-        t = t.replace('*', '')
-        t = t.replace('	', ' ')
-        t = t.replace("&quot;", '')
-        t = t.replace("&quot", '')
-        t = t.replace("×", 'x')
-        t = t.replace("а́", 'а')
+
+        bannedSymb = [['▪', ''], ['°', ''], ["\\", ''], ['️', ''], ['–', '-'], ['’', ''],
+                      ['…', '.'], ['x000D', ''], ['¶', ''], ['«', '"'], ['»', '"'], ['®', ''],
+                      ['`', '"'], ['_', ''], ['”', '"'], ['™', ''], ['=', '-'], ['obj', ''],
+                      ['—', '-'], ['•', ''], ['–', '-'], ['	', ' '], ['´', '-'], ['/', ';'], ['<', ' менее '],
+                      ['>', ' более '], ['í', 'i'], ['à', 'a'], ['é', 'e'], ['±', '+-'],
+                      ['*', ''], ['	', ' '], ["&quot;", ''], ["&quot", ''], ["×", 'x'],
+                      ["а́", 'а']]
+        for i in bannedSymb:
+            t = t.replace(i[0], i[1])
         return t
 
     @staticmethod
@@ -639,13 +607,10 @@ class Functions:
         else:
             return 'Китай'
 
-    def save_data(self, data, seller_code, path=os.getcwd(), original_name=str(round(time.time())), _print=True,
-                  _full=False, text_print=''):
+    @staticmethod
+    def save_data(data, seller_code, path=os.getcwd(), original_name=str(round(time.time())), _print=True,
+                  text_print=''):
         file = Path(path, f'{seller_code}_{original_name}.xlsx')
-        try:
-            os.remove(file)
-        except BaseException:
-            pass
         # file = f'./!parsed_full/{seller_code}_{original_name}.xlsx'
         # if _full:
         #     try:
@@ -653,15 +618,7 @@ class Functions:
         #     except OSError:
         #         # print('Пожалуйста, закройте файл с товарами')
         #         pass
-        success = False
 
-        while not success:
-            try:
-                with open(file, 'w'):
-                    print('')
-                success = True
-            except PermissionError:
-                input('Пожалуйста, закройте файл с товарами и нажмите Enter')
         success = False
         x = pd.DataFrame(data)
         while not success:
@@ -824,9 +781,7 @@ class Functions:
                 success = False
                 while not success:
                     try:
-                        three_check = 0
                         for line in f:
-                            res_d = ''
                             _id = line[:line.find(';')]
                             t_l = self.cleanText(line[line.find(';') + 1:]).replace('"', '')
                             dict_res.setdefault(_id, t_l)
@@ -843,6 +798,104 @@ class Functions:
         for i in range(len(size)):
             dict.setdefault(size[i], size_ru[i])
         return dict
+
+        # поиск информации забитой озоном в ячейках
+
+    def getSetsFromExcel(self, sheet_name, path='', prefixes=None):
+        # проверяем, что путь и префиксы не пустые
+        if path and prefixes:
+            # читаем Excel-файл и выбираем лист validation
+            df = pd.read_excel(path, sheet_name=sheet_name, header=None)
+            # ищем столбец, где есть хоть одна ячейка с любым из префиксов
+            column_index = None  # индекс столбца
+            for i in range(df.shape[1]):  # перебираем все столбцы
+                column = df.iloc[:, i].astype(str)  # получаем столбец по индексу i
+                for prefix in prefixes:  # перебираем все префиксы
+                    if column.str.startswith(prefix).any():  # проверяем, есть ли ячейка с этим префиксом в столбце
+                        column_index = i  # запоминаем индекс столбца
+                        break  # выходим из цикла по префиксам
+                if column_index is not None:  # если нашли нужный столбец
+                    break  # выходим из цикла по столбцам
+
+            # если нашли нужный столбец
+            if column_index is not None:
+                # получаем все ячейки из этого столбца и превращаем их в множество (set)
+                result = set(df.iloc[:, column_index])
+                return result  # возвращаем результат
+
+            else:  # если не нашли нужный столбец
+                return None  # возвращаем None
+
+        else:  # если путь или префиксы пустые
+            return None  # возвращаем None
+
+    def save_photo_file(self, _arts, _urls, path, name, seller_code):
+        # если id-1111-1111 имеет ind 0 в _arts, то и в _urls под ind 0 должны быть фото id-1111-1111
+        pattern = {0: ['Артикул продавца'], 1: ['Медиафайлы'], 2: [
+            '! Ссылки на фото/видео для одного артикула необходимо указать в одной строке и через разделитель ;']}
+        for i in _arts:
+            pattern[0].append(i)
+            pattern[2].append('')
+        for i in _urls:
+            pattern[1].append(i)
+        self.save_data(path=path,
+                       original_name=name,
+                       data=pattern,
+                       seller_code=seller_code)
+
+    def update_photo(self, warehouse, seller_code):
+        PHOTO_SIZE = 1200
+
+        # тут реализовать выбор файла -> выгрузка артикулов -> создание отедльного файла формата
+        # для фото (т.е. по шаблону вб)
+        to_del = []
+
+        if warehouse == 'spb':
+            to_del.append('id-')
+        elif warehouse == 'msc':
+            to_del.append('Z1')
+        path = self.getFolderFile(2, item='some wb file')
+        res = self.getSetsFromExcel(path=path,
+                                    sheet_name='Sheet1',
+                                    prefixes=['id-'])
+        out = []
+
+        for art in res:
+            flag = False
+            for _ in to_del:
+                if _ in art:
+                    flag = True
+                    break
+            if flag:
+                out.append(self.cleanArticul(articular=art,
+                                             seller_code=seller_code)[1])
+
+        SO_file = pd.read_csv('./SexOptovik/all_prod_info.csv', encoding='cp1251', sep=';', header=None)
+        art_ph = list(zip(SO_file.iloc[:, 0].astype(str), SO_file.iloc[:, 13].astype(str)))
+
+        _urls = out.copy()
+        for i in range(len(out)):
+            for j in art_ph:
+                if out[i] == j[0]:
+                    _url = ''
+                    photo_urls = list(map(lambda
+                                              _: f'http://sexoptovik.ru/_project/user_images/prods_res/{out[i]}/{out[i]}_{_}_{PHOTO_SIZE}.jpg',
+                                          j[1].split()))
+                    if len(photo_urls) != 0:
+                        for z in range(len(photo_urls) - 1):
+                            _url += photo_urls[z] + ';'
+                        _url += photo_urls[len(photo_urls) - 1]
+                    _urls[i] = _url
+                    out[i] = 'id-{}-{}'.format(out[i], seller_code)
+
+        if not os.path.exists('./photo'): os.mkdir('./photo')
+        if not os.path.exists('./photo/{}'.format(seller_code)): os.mkdir('./photo/{}'.format(seller_code))
+
+        return self.save_photo_file(_arts=out,
+                                    _urls=_urls,
+                                    path='./photo/{}'.format(seller_code),
+                                    name='updated-photos-{}'.format(seller_code),
+                                    seller_code=seller_code)
 
 
 class kema_parser(Functions):
@@ -1319,7 +1372,7 @@ class SexOptovik(Functions):
                 google_ids.append('163cgrAFCKd01CGG1FhhT70ibF8d9F7B3')
                 google_names.append('wb_1299.xlsx')
 
-            path2 = Path(path, 'pool', 'SexOptovik', 'google_downloaded')
+            path2 = Path(path, 'pool', 'SexOptovik', 'google_downloaded', 'wb')
             try:
                 shutil.rmtree(path2)
                 os.rmdir(path2)
@@ -1327,10 +1380,10 @@ class SexOptovik(Functions):
                 os.mkdir(path2)
             try:
                 if type == 0:
-                    Functions.google_driver(google_ids, google_names, './pool/SexOptovik/google_downloaded')
+                    Functions.google_driver(google_ids, google_names, './pool/SexOptovik/google_downloaded/wb')
                 else:
                     Functions.google_driver([google_ids[type]], [google_names[type]],
-                                            './pool/SexOptovik/google_downloaded')
+                                            './pool/SexOptovik/google_downloaded/wb')
                 success = True
             except google.auth.exceptions.RefreshError:
                 print('Токен устарел. Необходимо заново авторизироваться в аккаунт.')
@@ -1353,7 +1406,7 @@ class SexOptovik(Functions):
         extra = extra + '. ' + data_lower
         info = list(map(lambda data: data.strip(), data_lower.lower().split('#')))
         info = list(map(lambda info: info.split('>'), info))
-        with open('./pool/SexOptovik/google_downloaded/wb_cats.txt') as f:
+        with open('./pool/SexOptovik/google_downloaded/wb/wb_cats.txt') as f:
             for i in f:
                 cats_wb.add(i.rstrip().lower())
         cats_wb.remove('')
@@ -1459,10 +1512,10 @@ class SexOptovik(Functions):
         return res[0], data.replace(' #', '.')
 
     def upload_cats(self):
-        status_file = os.path.isfile('./pool/SexOptovik/google_downloaded/wb_cats.txt')
+        status_file = os.path.isfile('./pool/SexOptovik/google_downloaded/wb/wb_cats.txt')
         if status_file:
             set_wb_cats = set()
-            with open('./pool/SexOptovik/google_downloaded/wb_cats.txt') as f:
+            with open('./pool/SexOptovik/google_downloaded/wb/wb_cats.txt') as f:
                 for i in f:
                     set_wb_cats.add(i.lower().rstrip())
             set_wb_cats.remove('')
@@ -1530,7 +1583,7 @@ class SexOptovik(Functions):
             file_path = self.download_universal(url, path_def='./SexOptovik')
         elif choose == 2:
             try:
-                path = f'./pool/SexOptovik/google_downloaded/wb_{self.seller_code}.xlsx'
+                path = f'./pool/SexOptovik/google_downloaded/wb/wb_{self.seller_code}.xlsx'
                 os.remove(path)
             except OSError:
                 google_id = []
@@ -1542,7 +1595,7 @@ class SexOptovik(Functions):
                     google_id.append('163cgrAFCKd01CGG1FhhT70ibF8d9F7B3')
                     google_name.append('wb_1299.xlsx')
                 self.google_driver(google_ids=google_id, file_names=google_name,
-                                   path_os_type='./pool/SexOptovik/google_downloaded')
+                                   path_os_type='./pool/SexOptovik/google_downloaded/wb')
 
         else:
             print('Продолжаю со старыми данными\n')
@@ -1551,7 +1604,7 @@ class SexOptovik(Functions):
 
         # !!!!!!!!!!!!!!!!!!!!!!!!!!
 
-        PATH_GOOGLE_XLSX = f'./pool/SexOptovik/google_downloaded/wb_{self.seller_code}.xlsx'
+        PATH_GOOGLE_XLSX = f'./pool/SexOptovik/google_downloaded/wb/wb_{self.seller_code}.xlsx'
 
         # !!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1564,12 +1617,12 @@ class SexOptovik(Functions):
         set_of_data_artics, errors_set_data_artics = Functions.getDataXslx(self, PATH_GOOGLE_XLSX,
                                                                            sellerCode=self.seller_code)
         blacklist_brands = Functions.uploadFromFile(self,
-                                                    file_path='./pool/SexOptovik/google_downloaded/blacklist_brands_wb.txt',
+                                                    file_path='./pool/SexOptovik/google_downloaded/wb/blacklist_brands_wb.txt',
                                                     isSet=True)
         blacklist_brands = list(map(lambda item: item.rstrip().lower(), blacklist_brands))
 
         PROBLEM_ITEMS = Functions.uploadFromFile(self,
-                                                 file_path='./pool/SexOptovik/google_downloaded/problem_items_wb_id.txt',
+                                                 file_path='./pool/SexOptovik/google_downloaded/wb/problem_items_wb_id.txt',
                                                  isSet=True)
         PROBLEM_ITEMS = list(map(lambda item: item.rstrip().lower(), PROBLEM_ITEMS))
         abs_new_items = 0
@@ -2039,7 +2092,7 @@ class OzonParser(Functions):
             sys.exit(0)
 
     @staticmethod
-    def initialize_blacklist_of_brands():
+    def initializeBannedBrands():
         banned_brands = set()
         with open('./pool/SexOptovik/Ozon/banned_brands.txt', 'r', encoding='utf-8') as banned_brands_file:
             # banned_brands.add(banned_brands_file.readline())
@@ -2051,7 +2104,7 @@ class OzonParser(Functions):
         # загрузка всевозможных категорий с Ozon
         self.preparing_for_parsing_files_download()
         cats_arr = self.initialize_cats()
-        BANNED_BRANDS = self.initialize_blacklist_of_brands()
+        BANNED_BRANDS = self.initializeBannedBrands()
         PATH_GOOGLE_XLSX = './pool/SexOptovik/Ozon/oz-1277.csv'
         set_of_data_artics, errors_set_data_artics = Functions.getDataXslx(self, PATH_GOOGLE_XLSX,
                                                                            sellerCode=self.seller_code,
@@ -2106,18 +2159,17 @@ CONST_AV_CODES = {'1277', '1299', '1366'}
 def create_all_folders():
     if not Path.exists(Path(os.getcwd(), 'pool')):
         os.mkdir(Path(os.getcwd(), 'pool'))
-    
+
     return
 
 
-def checked_value():
-    VALUES = {1: 'sexopt', 2: 'kema', 3: 'astkol'}
+def checked_value(VALUES, left, right):
     success = False
     print(f'Выберите необходимый скрипт:\n {VALUES}')
     try:
         while not success:
             res = int(input())
-            if res < 1 or res > 3:
+            if res < left or res > right:
                 print(f'Введите значение из списка. {VALUES}')
             success = True
     except ValueError:
@@ -2126,6 +2178,38 @@ def checked_value():
 
 
 if __name__ == '__main__':
+    from src import LoadDB as db
+    import src.API.Api as API
+
+    a = db.DB_loader()
+    # print(a.getInfo(1277, 'wb'))
+    """
+    test api methods
+    """
+    API = API.ServiceAPI(
+        Host="api-seller.ozon.ru",
+        ClientId="601600",
+        ApiKey="4185804a-6c3c-4c2b-a0a8-e028dc521761",
+        ContentType="application/json"
+    )
+    url = f'https://api-seller.ozon.ru' + API.OzonRequestURL['category-tree']
+    try:
+        response = API.sendResponse(
+            url=url,
+            body=API.createRequest(
+                                   category_id=17027484
+                                   ))
+        formatted_json = json.dumps(response.json(), indent=4, ensure_ascii=False)
+
+
+        # Сохранение JSON в файл
+        with open('output.json', 'w') as file:
+            file.write(formatted_json)
+    except src.ExceptionService.Exceptions.CustomError as e:
+        print(e)
+    except BaseException as e:
+        print(e)
+    sys.exit(0)
 
     cur_time = time.time()
     create_all_folders()
@@ -2135,18 +2219,28 @@ if __name__ == '__main__':
         print(f'! Вы ввели недоступный код поставщика.\nПодключенные продавцы: {CONST_AV_CODES}\n')
         seller_code = int(input('Введите код продавца: '))
 
-    val = checked_value()
+    val = checked_value(VALUES={1: 'sexopt', 2: 'kema', 3: 'astkol', 4: 'update_photo'},
+                        left=1,
+                        right=4)
 
     if val == 1:
         optovik = SexOptovik_wb.SexOptovik(f'{seller_code}')
         optovik.start()
+        sys.exit(0)
     elif val == 2:
         kema = kema_parser('1366')
         a = Functions.workWithExcel(1)
         all_media_files = kema.start_parser()
-    elif val == 3:
-        pass
-
+    elif val == 4:
+        VALUES = {1: 'spb', 2: 'msc', 3: 'all'}
+        val = checked_value(VALUES=VALUES,
+                            left=1,
+                            right=3)
+        _main = main.Functions()
+        _main.update_photo(seller_code=str(seller_code),
+                           warehouse=VALUES.get(val))
+        opt = SexOptovik_wb.SexOptovik(f'{seller_code}')
+        sys.exit(0)
     # OzonParser = OzonParser(f'{seller_code}')
     # OzonParser.start_parsing()
 

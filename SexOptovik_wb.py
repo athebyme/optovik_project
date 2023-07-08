@@ -1,6 +1,5 @@
-import pathlib
+import copy
 from itertools import product
-from pathlib import Path
 
 import google.auth.exceptions
 
@@ -11,15 +10,15 @@ import shutil
 import sys
 import time
 
-class SexOptovik():
+
+class SexOptovik(main.Functions):
     cwd = os.getcwd()
     optovik_items = {}
     current_cats_wb = set()
     seller_code = ''
-    size_img = 650
-    CONST_AMOUNT_OF_XLSX_ITEMS = 10
-
-    parsed_items =           {1: ['Номер карточки'], 2: ['Предмет'], 3: ['Цвет'],
+    size_img = 1200
+    ProdLimit = 10
+    pattern = {1: ['Номер карточки'], 2: ['Предмет'], 3: ['Цвет'],
                               4: ['Бренд'], 5: ['Пол'], 6: ['Название'],
                               7: ['Артикул товара'], 8: ['Размер'], 9: ['Рос. размер'],
                               10: ['Баркод товара'],
@@ -45,32 +44,23 @@ class SexOptovik():
                               41: ['Количество предметов в упаковке'], 42: ['Упаковка']
                               }
 
-    parsed_items_100_items = {1: ['Номер карточки'], 2: ['Предмет'], 3: ['Цвет'],
-                              4: ['Бренд'], 5: ['Пол'], 6: ['Название'],
-                              7: ['Артикул товара'], 8: ['Размер'], 9: ['Рос. размер'],
-                              10: ['Баркод товара'],
-                              11: ['Цена'], 12: ['Состав'], 13: ['Медиафайлы'],
-                              14: ['Описание'],
-                              15: ['Страна производства'],
-                              16: ['Особенности секс игрушки'],
-                              17: ['Особенности модели'], 18: ['Материал изделия'],
-                              19: ['Наличие батареек в комплекте'], 20: ['Объем'],
-                              21: ['Объем (мл)'],
-                              22: ['Объем средства'], 23: ['Ширина предмета'],
-                              24: ['Ширина упаковки'], 25: ['Длина (см)'], 26: ["Длина упаковки"],
-                              27: ['Длина секс игрушки'],
-                              28: ['Рабочая длина секс игрушки'],
-                              29: ['Высота предмета'], 30: ['Высота упаковки'],
-                              31: ['Глубина предмета'],
-                              32: ['Диаметр'],
-                              33: ['Диаметр секс игрушки'], 34: ['Вид вибратора'],
-                              35: ['Вес без упаковки'], 36: ['Вес(г)'],
-                              37: ['Вес средства'], 38: ['Вес товара без упаковки(г)'],
-                              39: ['Вес товара с упаковкой(г)'],
-                              40: ['Комплектация'],
-                              41: ['Количество предметов в упаковке'], 42: ['Упаковка']
-                              }
+    healthCats = {'Презервативы'}
+    curhealth_count = 0
+    parsed_items = copy.deepcopy(pattern)
+    parsedGoodsFixed = copy.deepcopy(pattern)
+    health_pattern = copy.deepcopy(pattern)
+    healthGoodsFixed = copy.deepcopy(pattern)
 
+    needToCheckSet = set() #доп артикулы для проверки
+    #needToCheck = False
+    @staticmethod
+    def for_sizes_parse(array_4XL):
+        size = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '4XL']
+        size_ru = array_4XL.copy()
+        dict = {}
+        for i in range(len(size)):
+            dict.setdefault(size[i], size_ru[i])
+        return dict
     @staticmethod
     def parse_sizes(text, type):
         eds = ['длина', 'ширина', 'высота', 'диаметр', 'глубина']
@@ -325,7 +315,8 @@ class SexOptovik():
             return res
         return text
 
-    def download_from_google(self, type, path=os.getcwd()):
+
+    def download_from_google(self, type, path):
             success = False
             while not success:
                 url_blacklist_items_wb = [
@@ -359,18 +350,12 @@ class SexOptovik():
                     google_ids.append('1c8eaqFkxmYOPsshXwvMP9z5HaXliS-hs')
                     google_names.append('wb_1366.xlsx')
 
-                path2 = Path(path, 'pool', 'SexOptovik', 'google_downloaded')
-                try:
-                    shutil.rmtree(path2)
-                    os.rmdir(path2)
-                except OSError:
-                    os.mkdir(path2)
+                if not os.path.exists(path): os.mkdir(path)
                 try:
                     if type == 0:
-                        main.Functions.google_driver(google_ids, google_names, './pool/SexOptovik/google_downloaded')
+                        main.Functions.google_driver(google_ids, google_names, path)
                     else:
-                        main.Functions.google_driver([google_ids[type]], [google_names[type]],
-                                                './pool/SexOptovik/google_downloaded')
+                        main.Functions.google_driver([google_ids[4]], [google_names[4]], path)
                     success = True
                 except google.auth.exceptions.RefreshError:
                     print('Токен устарел. Необходимо заново авторизироваться в аккаунт.')
@@ -393,7 +378,7 @@ class SexOptovik():
         extra = extra + '. ' + data_lower
         info = list(map(lambda data: data.strip(), data_lower.lower().split('#')))
         info = list(map(lambda info: info.split('>'), info))
-        with open('./pool/SexOptovik/google_downloaded/wb_cats.txt') as f:
+        with open('./pool/SexOptovik/google_downloaded/wb/wb_cats.txt') as f:
             for i in f:
                 cats_wb.add(i.rstrip().lower())
         cats_wb.remove('')
@@ -493,10 +478,10 @@ class SexOptovik():
         return res[0], data.replace(' #', '.')
 
     def upload_cats(self):
-        status_file = os.path.isfile('./pool/SexOptovik/google_downloaded/wb_cats.txt')
+        status_file = os.path.isfile('./pool/SexOptovik/google_downloaded/wb/wb_cats.txt')
         if status_file:
             set_wb_cats = set()
-            with open('./pool/SexOptovik/google_downloaded/wb_cats.txt') as f:
+            with open('./pool/SexOptovik/google_downloaded/wb/wb_cats.txt') as f:
                 for i in f:
                     set_wb_cats.add(i.lower().rstrip())
             set_wb_cats.remove('')
@@ -525,9 +510,77 @@ class SexOptovik():
                     set_stocks.add(line[0])
         return set_stocks
 
+    def checkFolders(self):
+        paths = [
+            './pool',
+            './pool/SexOptovik',
+            './pool/SexOptovik/google_downloaded',
+            './pool/SexOptovik/google_downloaded/wb',
+            './SexOptovik'
+        ]
+        for path in paths:
+            if not os.path.exists(path):
+                os.mkdir(path)
+
+    @staticmethod
+    def save_goods(*args, **kwargs):
+        """
+        Эта функция получает некоторые описанные ниже параметры и выполяет их сохранение
+        с помощью вызова метода из класс main, save_data
+
+        :param data:dict #some parsed data
+        :param seller_code #seller id
+        :param path #path to save data. default - os.cwd
+        :param original_name #unique name of output.file
+        :param _print #inform about success of saving the file
+        :param text_to_print #some text you want to print
+
+        """
+        def is_valid(arg, arg_dtype):
+            if not isinstance(arg, arg_dtype):
+                return False
+            return True
+        # Проверка параметров
+        for arg in args:
+            if not is_valid(arg, dict):
+                raise ValueError(f"Невалидный параметр: {arg}")
+        for key, value in kwargs.items():
+            if not is_valid(value, type(value)):
+                raise ValueError(f"Невалидный параметр: {value}")
+
+        # Вызов функции save_data
+        data = kwargs.get('data')
+        seller_code = kwargs.get('seller_code')
+        path = kwargs.get('path', os.getcwd())
+        original_name = kwargs.get('original_name', str(round(time.time())))
+        _print = kwargs.get('_print', True)
+        _full = kwargs.get('_full', False)
+        text_print = kwargs.get('text_print', '')
+        start_i = kwargs.get('start_i', 1)
+        end_i = kwargs.get('end_i', 1)
+        for i in range(start_i, end_i):
+            data[1].append(i)
+        if(len(data[2]) > 1):
+            main.Functions.save_data(data, seller_code, path=path, original_name=original_name, _print=_print,
+                                 text_print=text_print)
+
+    @staticmethod
+    def remove_folder(path):
+        try:
+            shutil.rmtree(path)
+        except FileNotFoundError:
+            pass
+
+    @staticmethod
+    def create_folder(path):
+        try:
+            os.mkdir(path)
+        except FileExistsError:
+            pass
 
 
     def start(self):
+        self.checkFolders()
         ALL_MEDIA = {}
         countries = ['Англия', 'США', 'Беларусь', 'Бельгия', 'Бразилия', 'Португалия', 'Германия', 'Голландия',
                      'Гонконг', 'Дания', 'Индия', 'Испания', 'Турция', 'Италия', 'Казахстан', 'Канада', 'Корея',
@@ -536,8 +589,8 @@ class SexOptovik():
                      'Эстония', 'Япония', 'Китай']
         # data_set_wb_cats = Functions.get_wb_cats(self) #загрузка из выборочного файла
         amount_of_items_in_file = int(input(f'Введите число товаров в готовых файлах XLSX\n'
-                                            f'По стандарту - {self.CONST_AMOUNT_OF_XLSX_ITEMS}\nВвод: '))
-        self.CONST_AMOUNT_OF_XLSX_ITEMS = amount_of_items_in_file
+                                            f'По стандарту - {self.ProdLimit}\nВвод: '))
+        self.ProdLimit = amount_of_items_in_file
 
         # загрузить файлы txt
 
@@ -547,19 +600,9 @@ class SexOptovik():
                 input(f'Загрузить новые данные ?\n 1 - Да\n0 - Нет\n2  -  Только обновить wb_{self.seller_code}.xslx\n'))
         if choose == 1:
             cwd = self.cwd
-            path = Path(cwd, 'pool', 'SexOptovik')
+            path = './pool/SexOptovik/google_downloaded/wb'
             try:
-                shutil.rmtree(path)
-                os.rmdir(path)
-            except OSError:
-                os.mkdir(path)
-            except FileExistsError:
-                print(f'Пожалуйста, закройте файлы из папки {path}')
-            except BaseException:
-                print('Ошибка. Попробуйте заново')
-                sys.exit(0)
-            try:
-                self.download_from_google(type=0)
+                self.download_from_google(type=0, path=path)
             except google.auth.exceptions.TransportError:
                 print('Проверьте соединение\nХотите выбрать файл с категориями вручную?\n1 = да\n2 = нет')
                 ch = int(input())
@@ -576,23 +619,24 @@ class SexOptovik():
             url = 'http://www.sexoptovik.ru/files/all_prod_d33_.csv'
             file_path = main.Functions.download_universal(url, path_def='./SexOptovik')
         elif choose == 2:
+            path = f'./pool/SexOptovik/google_downloaded/wb/wb_{self.seller_code}.xlsx'
             try:
-                path = f'./pool/SexOptovik/google_downloaded/wb_{self.seller_code}.xlsx'
                 os.remove(path)
             except OSError:
-                google_id = []
-                google_name = []
-                if self.seller_code == '1277':
-                    google_id.append('1SVeUg1-AWWZyTgg9RGkwitOSIDT4Ixul')
-                    google_name.append('wb_1277.xlsx')
-                elif self.seller_code == '1299':
-                    google_id.append('163cgrAFCKd01CGG1FhhT70ibF8d9F7B3')
-                    google_name.append('wb_1299.xlsx')
-                elif self.seller_code == '1366':
-                    google_id.append('1c8eaqFkxmYOPsshXwvMP9z5HaXliS-hs')
-                    google_name.append('wb-1366.xlsx')
-                self.google_driver(google_ids=google_id, file_names=google_name,
-                                   path_os_type='./pool/SexOptovik/google_downloaded')
+                pass
+            google_id = []
+            google_name = []
+            if self.seller_code == '1277':
+                google_id.append('1SVeUg1-AWWZyTgg9RGkwitOSIDT4Ixul')
+                google_name.append('wb_1277.xlsx')
+            elif self.seller_code == '1299':
+                google_id.append('163cgrAFCKd01CGG1FhhT70ibF8d9F7B3')
+                google_name.append('wb_1299.xlsx')
+            elif self.seller_code == '1366':
+                google_id.append('1c8eaqFkxmYOPsshXwvMP9z5HaXliS-hs')
+                google_name.append('wb_1366.xlsx')
+            self.google_driver(google_ids=google_id, file_names=google_name,
+                               path_os_type='./pool/SexOptovik/google_downloaded/wb')
 
         else:
             print('Продолжаю со старыми данными\n')
@@ -601,7 +645,7 @@ class SexOptovik():
 
         # !!!!!!!!!!!!!!!!!!!!!!!!!!
 
-        PATH_GOOGLE_XLSX = f'./pool/SexOptovik/google_downloaded/wb_{self.seller_code}.xlsx'
+        PATH_GOOGLE_XLSX = f'./pool/SexOptovik/google_downloaded/wb/wb_{self.seller_code}.xlsx'
 
         # !!!!!!!!!!!!!!!!!!!!!!!!!!
         checkBrand = "Lasciva Piter Anal Wisteria"
@@ -623,12 +667,12 @@ class SexOptovik():
         #errors_set_data_artics = set()
 
         blacklist_brands = main.Functions.uploadFromFile(self,
-                                                         file_path='./pool/SexOptovik/google_downloaded/blacklist_brands_wb.txt',
+                                                         file_path='./pool/SexOptovik/google_downloaded/wb/blacklist_brands_wb.txt',
                                                          isSet=True)
         blacklist_brands = list(map(lambda item: item.rstrip().lower(), blacklist_brands))
 
         PROBLEM_ITEMS = main.Functions.uploadFromFile(self,
-                                                      file_path='./pool/SexOptovik/google_downloaded/problem_items_wb_id.txt',
+                                                      file_path='./pool/SexOptovik/google_downloaded/wb/problem_items_wb_id.txt',
                                                       isSet=True)
         PROBLEM_ITEMS = list(map(lambda item: item.rstrip().lower(), PROBLEM_ITEMS))
         abs_new_items = 0
@@ -637,21 +681,28 @@ class SexOptovik():
         opisanie = main.Functions.uploadFromFile(self, file_path='./SexOptovik/all_prod_d33_.csv', isSet=False)
         print(f'Ошибки: {errors_set_data_artics}')
 
+        pathLimitProds = f'./!parsed_items_{self.ProdLimit}'
+        pathHealthProds = f'./!parsed_items_{self.ProdLimit}_health'
         file_path = './SexOptovik/all_prod_info.csv'
-
-        path_100 = f'./!parsed_items_{self.CONST_AMOUNT_OF_XLSX_ITEMS}'
         try:
-            os.mkdir(path_100)
+            os.mkdir(pathLimitProds)
         except FileExistsError:
             pass
-        path_100 += f'/{self.seller_code}'
+        pathLimitProds += f'/{self.seller_code}'
+
+        def delete_folders():
+            self.remove_folder(pathLimitProds)
+            self.remove_folder(pathHealthProds)
+
+        def create_folders():
+            self.create_folder(pathLimitProds)
+            self.create_folder(pathHealthProds)
+
         success = False
         while not success:
             try:
-                shutil.rmtree(path_100)
-                os.rmdir(path_100)
-            except FileNotFoundError:
-                os.mkdir(path_100)
+                delete_folders()
+                create_folders()
                 success = True
             except PermissionError:
                 input('Пожалуйста, закройте все открытые файлы из папки на нажмите любую клавишу.\n')
@@ -669,8 +720,10 @@ class SexOptovik():
                 success = True
             except PermissionError:
                 input('Пожалуйста, закройте все открытые файлы из папки на нажмите любую клавишу.\n')
-        count_items_100 = 0
+        CuurentProdCount = 0
         set_stocks = self.init_stocks
+
+
 
         with open(file_path) as file:
             ERRORS_ITEMS_BANNED_BRANDS = set()
@@ -774,8 +827,6 @@ class SexOptovik():
                                       'костюм' in check, ' лиф' in check, 'стреп' in check, 'стрэп' in check,
                                       'трус' in check
                                       ]
-                            if articul == 'id-21460-1277':
-                                print()
                             size_all = size_ru = volume = ''
                             if 'Белье' in description or 'БДСМ' in description or any(clothe):
                                 size = self.parse_sizes(DATA[10], 'clothe')
@@ -1006,59 +1057,50 @@ class SexOptovik():
                                                           41: count_items, 42: 'Непрозрачная анонимная упаковка'
                                                           }
 
-                            count_items_100 += 1
+                            CuurentProdCount += 1
+                            if category in self.healthCats:
+                                for k, v in current_articul_wb_pattern.items():
 
+                                    self.health_pattern[k].append(v)
+                                    self.healthGoodsFixed[k].append(v)
 
-
-
-                            for k, v in current_articul_wb_pattern.items():
-                                self.parsed_items[k].append(v)
-                                self.parsed_items_100_items[k].append(v)
-                            if count_items_100 % self.CONST_AMOUNT_OF_XLSX_ITEMS == 0:
-                                for kz in range(1, self.CONST_AMOUNT_OF_XLSX_ITEMS + 1):
-                                    self.parsed_items_100_items[1].append(kz)
-                                main.Functions.save_data(self, self.parsed_items_100_items, seller_code=self.seller_code,
-                                                         path=path_100,
-                                                         original_name=f'{count_items_100 - self.CONST_AMOUNT_OF_XLSX_ITEMS - 1}-{count_items_100}')
-                                self.parsed_items_100_items.clear()
-                                self.parsed_items_100_items = {1: ['Номер карточки'], 2: ['Предмет'], 3: ['Цвет'],
-                                                               4: ['Бренд'], 5: ['Пол'], 6: ['Название'],
-                                                               7: ['Артикул товара'], 8: ['Размер'], 9: ['Рос. размер'],
-                                                               10: ['Баркод товара'],
-                                                               11: ['Цена'], 12: ['Состав'], 13: ['Медиафайлы'],
-                                                               14: ['Описание'],
-                                                               15: ['Страна производства'],
-                                                               16: ['Особенности секс игрушки'],
-                                                               17: ['Особенности модели'], 18: ['Материал изделия'],
-                                                               19: ['Наличие батареек в комплекте'], 20: ['Объем'],
-                                                               21: ['Объем (мл)'],
-                                                               22: ['Объем средства'], 23: ['Ширина предмета'],
-                                                               24: ['Ширина упаковки'], 25: ['Длина (см)'], 26: ["Длина упаковки"],
-                                                               27: ['Длина секс игрушки'],
-                                                               28: ['Рабочая длина секс игрушки'],
-                                                               29: ['Высота предмета'], 30: ['Высота упаковки'],
-                                                               31: ['Глубина предмета'],
-                                                               32: ['Диаметр'],
-                                                               33: ['Диаметр секс игрушки'], 34: ['Вид вибратора'],
-                                                               35: ['Вес без упаковки'], 36: ['Вес(г)'],
-                                                               37: ['Вес средства'], 38: ['Вес товара без упаковки(г)'],
-                                                               39: ['Вес товара с упаковкой(г)'],
-                                                               40: ['Комплектация'],
-                                                               41: ['Количество предметов в упаковке'], 42: ['Упаковка']
-                                                               }
+                                    # добавляем проверку на заполненность healthGoodsFixed
+                                    if len(self.healthGoodsFixed[k]) >= self.ProdLimit:
+                                        self.save_goods(data=self.healthGoodsFixed, seller_code=self.seller_code,
+                                                        path=pathHealthProds,
+                                                        original_name=f'{CuurentProdCount - self.ProdLimit - 1}-{CuurentProdCount}-health',
+                                                        start_i=1, end_i=self.ProdLimit + 1)
+                                        self.curhealth_count += 1
+                                        # обнуление шаблона по требуемому кол-ву
+                                        self.healthGoodsFixed = self.pattern.copy()
+                            else:
+                                for k, v in current_articul_wb_pattern.items():
+                                    self.parsed_items[k].append(v)
+                                    self.parsedGoodsFixed[k].append(v)
+                                    # добавляем проверку на заполненность parsedGoodsFixed
+                                    if len(self.parsedGoodsFixed[k]) >= self.ProdLimit:
+                                        self.save_goods(data=self.parsedGoodsFixed, seller_code=self.seller_code,
+                                                        path=pathLimitProds,
+                                                        original_name=f'{CuurentProdCount - self.ProdLimit - 1 - self.curhealth_count}-{CuurentProdCount}',
+                                                        start_i=1, end_i=self.ProdLimit + 1)
+                                        # обнуление шаблона по требуемому кол-ву
+                                        self.parsedGoodsFixed = self.pattern.copy()
 
                             ALL_MEDIA.setdefault(articul, photo_urls)
                             print(f'{abs_new_items}, ---     > {current_articul_wb_pattern}')
                     else:
                         ERRORS_ITEMS_BANNED_BRANDS.add(DATA[0])
-            for i in range(1, len(self.parsed_items[2])):
-                self.parsed_items[1].append(i)
-            for i in range(1, len(self.parsed_items_100_items[2])):
-                self.parsed_items_100_items[1].append(i)
-            main.Functions.save_data(self, self.parsed_items, seller_code=self.seller_code,
-                                     path=f'./!parsed_full/{self.seller_code}', _print=False, _full=True)
-            main.Functions.save_data(self, self.parsed_items_100_items, seller_code=self.seller_code, path=path_100,
-                                     original_name=f'{count_items_100}-END')
+
+            self.save_goods(data=self.healthGoodsFixed, seller_code=self.seller_code,
+                            original_name=f'health_prods',
+                            path=pathHealthProds, start_i=1, end_i=len(self.healthGoodsFixed[2]))
+            self.save_goods(data=self.parsed_items, seller_code=self.seller_code,
+                            _print=False, _full=True, path=f'./!parsed_full/{self.seller_code}',
+                            start_i=1, end_i=len(self.parsed_items[2]))
+            if len(self.parsedGoodsFixed[2]) >1:
+                self.save_goods(data=self.parsedGoodsFixed, seller_code=self.seller_code,
+                                path=pathLimitProds, original_name=f'{CuurentProdCount}-END',
+                                start_i=1, end_i=len(self.parsedGoodsFixed[2]))
             # COUNT_ITEMS_ALLPRODINFO = abs_new_items
             # K = 10 ** 10
             # while K >= 0:
@@ -1072,15 +1114,17 @@ class SexOptovik():
 
             print(f'Новых товаров найдено:   {abs_new_items}\nЗапрещенных брендов: {len(ERRORS_ITEMS_BANNED_BRANDS)}')
 
-        input('Обработка товаров с сайта Sex Optovik завершена.')
-
+        print('Обработка товаров с сайта Sex Optovik завершена.')
         # -------------------------------------------------------------------
 
-    def __init__(self, seller_code, preview='SexOptovik'):
+    def __init__(self, seller_code, preview='SexOptovik', needToCheck=False, needToCheckSet=None):
         self.checkBrand = None
         self.preview = preview
         main.Functions.showText('Sex Optovik')
         self.seller_code = str(seller_code)
+
+        if needToCheck:
+            self.needToCheckSet = needToCheckSet
 
         # print(f'\n--------------------------------------------'
         #      f'\nSexOptovik\n\ncwd:  {self.cwd}')

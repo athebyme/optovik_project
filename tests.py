@@ -5,10 +5,12 @@ import sys
 
 # print(input())
 import openpyxl
+import pandas as pd
 from py._builtin import execfile
 
 import config.Config
 import main
+from src.dataConfigs.regEx import rePattern
 
 
 # xlsx = openpyxl.load_workbook(os.getcwd()+'\\report_2022_7_29.xlsx')
@@ -1073,6 +1075,8 @@ def photo(path='', _row=0, checkBrand='', seller_code=''):
 #     main.Functions().save_data(saver, seller_code='1366', path=r"C:\Users\Anton\Desktop")
 
 from config import shopConfs
+
+
 def getConfig(sellerCode: str):
     conf = None
     v = -1
@@ -1083,8 +1087,10 @@ def getConfig(sellerCode: str):
         while not success:
             try:
                 v = int(input('Выберите магазин:\n[0] - Amare\n[1] - Somnium Face\n:'))
-                if 0 <= v <= 1 : success = True
-                else: print('[!] Вы ввели недопустимое значение')
+                if 0 <= v <= 1:
+                    success = True
+                else:
+                    print('[!] Вы ввели недопустимое значение')
             except ValueError:
                 print('[!] Введите число - 0 или 1')
         if v == 1:
@@ -1104,6 +1110,7 @@ def getConfig(sellerCode: str):
         conf = BananzzaConfig()
     return conf
 
+
 import SexOptovik_ozon
 from config.Config import Config
 
@@ -1116,22 +1123,251 @@ def getCategoryFilesPaths(path):
         sys.exit(1)
     return paths
 
+
+def checkCharset(path):
+    import chardet
+    with open(path, 'rb') as f:
+        result = chardet.detect(f.read())
+    return result['encoding']
+
+
+def download_msc():
+    from main import Functions as func
+    main = func(abs_path='./', provider='', sellerCode='')
+    name = ['as_price_and_num_rrc.csv', 'ke_price_and_num_rrc.csv', 'an_price_and_num_rrc.csv']
+    url = ['http://www.sexoptovik.ru/mp/as_price_and_num_rrc.csv',
+           'http://www.sexoptovik.ru/mp/ke_price_and_num_rrc.csv',
+           'http://www.sexoptovik.ru/mp/an_price_and_num_rrc.csv']
+    if not os.path.exists('./MSC'): os.mkdir('./MSC')
+    for i in range(len(name)):
+        path = f'./MSC/{name[i]}'
+        try:
+            os.remove(path)
+            main.download_universal(url=url[i], path_def='./MSC')
+        except OSError:
+            main.download_universal(url=url[i], path_def='./MSC')
+
+
+def getArticulBrand(path, encoding):
+    import re
+    Articul_Brand = {}
+    Photos = {}
+    https = r'https://astkol.com'
+    df = pd.read_csv(path, encoding=encoding, sep=';')
+    if 'as_price_and_num_rrc' in path:
+        df = df.iloc[0:]
+        for i in range(len(df)):
+            art = str(df.iloc[i, 0])
+            Articul_Brand[art] = str(df.iloc[i, 11])
+            url = df.iat[i, 6]
+            first = url[url.find('//') + 2:]
+            first = first[first.find('/'):]
+            Photos[art] = [f'{https}{first}']
+            if not pd.isna(df.iat[i, 40]):
+                other = df.iat[i, 40].split(',')
+                for j in other:
+                    Photos[art].append(f'{https}{j}')
+            totalStringUrl = ''
+            for j in range(len(Photos.get(art))):
+                totalStringUrl += Photos.get(art)[j]
+                if j != len(Photos.get(art)) - 1:
+                    totalStringUrl += '; '
+            Photos[art] = totalStringUrl
+    elif 'ke_price_and_num_rrc' in path:
+        with open(path, 'r+', encoding='utf-8') as f:
+            for line in f.readlines():
+                print(line)
+        df = df.iloc[22:]
+        Articul_Brand = dict(zip(df.iloc[:, 3], df.iloc[:, 18]))
+    elif 'an_price_and_num_rrc' in path:
+        df = df.iloc[0:]
+        for i in range(len(df)):
+            art = ''
+            if '-' in df.iloc[i, 0]:
+                art = re.findall('-(\d+)', df.iloc[i, 0])[0]
+                Articul_Brand[art] = df.iloc[i, 38]
+            else:
+                art = df.iloc[i, 0]
+                Articul_Brand[df.iloc[i, 0]] = df.iloc[i, 4]
+            Photos[art] = [f'{df.iat[i, 13]}']
+            for j in range(14, 16):
+                if not pd.isna(df.iat[i, j]):
+                    Photos[art].append(df.iat[i, j])
+            totalStringUrl = ''
+            for j in range(len(Photos.get(art))):
+                totalStringUrl += Photos.get(art)[j]
+                if j != len(Photos.get(art)) - 1:
+                    totalStringUrl += '; '
+            Photos[art] = totalStringUrl
+    return [Articul_Brand, Photos]
+
+
+def changeBrands(path, brand):
+    import re
+    # download_msc()
+    theOne = None
+    newed = 0
+    newed_loc = 0
+    NEWED_ALL = 0
+    changed = []
+    andrey = []
+    andrey_changed = []
+    _ke = _id = _as = _an = 0
+    ke_dict = {'----': 1}
+    ke_photo = {}
+    as_dict, as_photo = getArticulBrand(path='./MSC/as_price_and_num_rrc.csv', encoding='cp1251')
+    # ke_dict = getArticulBrand(path='./MSC/ke_price_and_num_rrc.csv', encoding='UTF-8')
+    an_dict, an_photo = getArticulBrand(path='./MSC/an_price_and_num_rrc.csv', encoding='cp1251')
+    files = getCategoryFilesPaths(path=path)
+    photo = ['']
+    getAllMSC = None
+    theOne = pd.DataFrame(
+        {'Номенклатура': [''], 'Предмет': [''], 'Артикул товара': [''], 'Наименование': [''], 'Бренд': [''],
+         'Описание': [''], 'Наличие фото': [''], 'Наличие видео': [''], 'Размер': [''], 'Рос. размер': [''],
+         'Баркод товара': [''], 'Материал изделия': [''], 'Упаковка': [''], 'Вес товара без упаковки (г), г': [''],
+         'Длина предмета, см': [''], 'Ширина упаковки, см': [''], 'Высота упаковки, см': [''],
+         'Длина упаковки, см': [''], 'Количество предметов в упаковке': [''], 'Особенности секс игрушки': [''],
+         'Диаметр секс игрушки': [''], 'Количество шариков': [''], 'Комплектация': [''], 'Цвет': [''],
+         'Страна производства': [''], 'Номер декларации соответствия': [''], 'Номер сертификата соответствия': [''],
+         'Дата регистрации сертификата/декларации': [''], 'Дата окончания действия сертификата/декларации': ['']})
+    getAllMSC = theOne.copy()
+    for file in files:
+        newed_loc = 0
+        df = pd.read_excel(fr'{path}\{file}', sheet_name='Sheet1')
+        length = df.iloc[:, 4].tolist()
+        for i in range(len(length)):
+            try:
+                column = 0
+                for j in range(len(df.loc[0])):
+                    if any(['1C1K' in str(df.iat[column, j]), '1C1A' in str(df.iat[column, j]),
+                            '1C1L' in str(df.iat[column, j]), 'id-' in str(df.iat[column, j])]):
+                        column = j
+                        break
+                if '1C1K' in df.iat[i, column]:
+                    _ke += 1
+                if 'id-' in df.iat[i, column]:
+                    _id += 1
+                if '1C1L' in df.iat[i, column]:
+                    _as += 1
+                if '1C1A' in df.iat[i, column]:
+                    _an += 1
+                    andrey.append(df.iat[i, column])
+                articul = df.iat[i, column]
+                articul = articul[articul.find('1C1') + 3:]
+                if 't' in articul or '-' in articul:
+                    while 't' in articul or '-' in articul:
+                        articul = articul[1:]
+                while not (ord(articul[0]) >= 48 and ord(articul[0]) <= 57):
+                    articul = articul[1:]
+
+                if any(['1C1A' in df.iat[i, column], '1C1L' in df.iat[i, column], '1C1K' in df.iat[i, column]]):
+                    getAllMSC = getAllMSC.append(df.loc[i], ignore_index=True)
+
+                if as_dict.get(articul) is not None and 'Z1C1L' in df.iat[i, column]:
+                    df.iloc[i, 4] = as_dict.get(articul)
+                    theOne = theOne.append(df.loc[i], ignore_index=True)
+                    photo.append(as_photo.get(articul))
+                    newed += 1
+                    newed_loc += 1
+                elif ke_dict.get(articul) is not None and 'Z1C1K' in df.iat[i, column]:
+                    df.iloc[i, 4] = ke_dict.get(articul)
+                    theOne = theOne.append(df.loc[i], ignore_index=True)
+                    photo.append(ke_photo.get(articul))
+                    newed += 1
+                    newed_loc += 1
+                elif an_dict.get(articul) is not None and 'Z1C1A' in df.iat[i, column]:
+                    df.iloc[i, 4] = an_dict.get(articul)
+                    andrey_changed.append(df.iat[i, column])
+                    theOne = theOne.append(df.loc[i], ignore_index=True)
+                    photo.append(an_photo.get(articul))
+                    newed += 1
+                    newed_loc += 1
+            except IndexError:
+                continue
+        df.to_excel(fr'{path}\new\{file}', index=False)
+        print(f'Закончил работу с {file} | Обновлено в этой категории: {newed_loc}')
+    theOne['ФОТО'] = photo
+    theOne = theOne.drop(index=0)
+
+    firstLoad = pd.DataFrame({'Артикул товара': theOne.iloc[0:, 2]})
+    firstLoad.to_excel(fr'{path}\new\!1.xlsx', index=False)
+    getAllMSC.to_excel(fr'{path}\new\!ALL_IN_ALL', index=False)
+    theOne.to_excel(fr'{path}\new\!2.xlsx', index=False)
+    print(
+        f'Закончил работу. Обновлено файлов артикулов: {newed} | kema: {_ke} | astkol: {_as} | andrey: {_an} | spb: {_id}')
+    for i in andrey:
+        if i not in andrey_changed:
+            print(i)
+
+
 def startOzon():
-    test = int(input())
-    getConfig(str(test))
-    return SexOptovik_ozon.SexOptovik_ozon(abs_path=os.getcwd(),
-                                        sellerCode=Config.sellerId,
-                                        provider=Config.shopName)
+    import config.Config as cnf
+
+    inp = input().split()
+    marketplace = inp[0].upper()
+    id = int(inp[1])
+
+
+    config = cnf.ConfigInitializer({'marketplace':marketplace,
+                                    'id': id})
+
+    return SexOptovik_ozon.SexOptovik_ozon(config)
+
+p = rePattern()
+def ExtractPatternFromText(INPUT_DATA, keywords=None):
+    if keywords is None:
+        keywords = p.ExtractParams
+    if not isinstance(INPUT_DATA, list):
+        INPUT_DATA = [INPUT_DATA]
+    result = {}
+    for text in INPUT_DATA:
+        for word in keywords:
+            pattern = r'{}(?:\s+([\w.-]+(?:\s+[\w.-]+)*))?\s+(\d+[\.,]?\d*)(?:\s*-\s*(\d+[\.,]?\d*))?'.format(word)
+            matches = re.findall(pattern, text)
+            for match in matches:
+                value1 = match[1].replace(',', '.')
+                value2 = match[2].replace(',', '.') if match[2] else value1
+                value1, value2 = float(value1), float(value2)
+                words_between = match[0] if match[0] else ''
+                if words_between == '':
+                    words_between = 'общий'
+                if word not in result:
+                    result[word] = {words_between: {'min': value1, 'max': value2}}
+                else:
+                    result[word] = [result[word], {words_between: {'min': value1, 'max': value2}}]
+    return result
+
+
+
 
 if __name__ == '__main__':
+
+    # changeBrands(path=r"C:\Users\Anton\Desktop\вб", brand=True)
+    # from config.presets.sizes import Sizes
+    # A = Sizes().initWeight('вес одного шарика 1.5 кг, вес второго 150 гр, всего 15гр * 10 шт')
 
     # files = getCategoryFilesPaths(path=r"C:\Users\Anton\Desktop\Folder WB")
     # for i in files:
     #     path = rf"C:\Users\Anton\Desktop\Folder WB\{i}"
 
+    import re
+
+    # text = "длина вибро-втулки 13,5 см, макс. диаметр 3 см; длина втулки 7,5 см, макс. диаметр 2,4 см; длина цепочки 21 см, макс. диаметр 2,4 см"
+    # text = "общая длина 24,3 см, длина до пульта 19,5 см, диаметр 3-3,8 см"
+    # text = "длина до кольца 17,5 см, вес одного шарика 15г, вес другого 20г"
+
+    # [!]
+    # text = "размер трусиков универсальный (40-46), внутренний диаметр колец 3, 4 и 5 см".replace(' и ', '-')
+
+    # text = 'общая длина 12 см, глубина проникновения 9,5 см, длина клит. стим-ра 6,5 см, диаметр 2,1-3 см'
+    texts = [
+        'длина фаллоса 14 см, макс. диаметр 3 см; длина вагин. фал-са 7 см, макс. диаметр 3,2 см, длина анал. фал-са 9,5 см, макс. диаметр 2,8 см',
+        'длина до кольца 17,5 см, вес одного шарика 15г, вес другого 20г',
+        'длина вибро-втулки 13,5 см, макс. диаметр 3 см; длина втулки 7,5 см, макс. диаметр 2,4 см; длина цепочки 21 см, макс. диаметр 2,4 см',
+        'общая длина 24,3 см, длина до пульта 19,5 см, диаметр 3-3,8 см']
+    #print(ExtractPatternFromText(
+    #    'ширина кожаной части оков 3,7 см, длина оков 25,5 см, общая длина сцепки с карабинами 13 см'),
+    #    )
+    # for k,v in ExtractPatternFromText(texts).items():
+    #     print(k,v)
     startOzon()
-
-
-
-
-
