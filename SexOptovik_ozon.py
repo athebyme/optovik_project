@@ -1,18 +1,15 @@
-import io
-import itertools
-import json
-import os
 import sys
 import re
 import time
+from typing import Tuple, Set, Any
+from functools import lru_cache
+import pymorphy2
+from numba import njit
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.neighbors import NearestNeighbors
 
-import googleapiclient.errors
-import gspread as gspread
-import numpy as np
-import requests
 import openai
 
-import Levenshtein
 import pandas as pd
 
 import main
@@ -21,45 +18,6 @@ import src.ExceptionService.Exceptions
 from config.Config import Config
 from config.presets.AnyData import AnyData
 from src.API import Api as API
-
-openai.api_key = os.getenv('OPENAI_API_KEY')
-
-
-@staticmethod
-def cleartext(text):
-    return re.sub(r'[^a-zа-я]', '', text)
-
-
-def findMatches(where, what):
-    from fuzzywuzzy import fuzz
-    max_similarity = 0
-    max_item = None
-    for category in what:
-        for item in where:
-            similarity = fuzz.ratio(cleartext(category.lower()), cleartext(item.lower()))
-            if similarity > max_similarity:
-                max_similarity = similarity
-                max_item = item
-    return max_item
-
-
-def export_to_excel(df, filename='output.xlsx'):
-    # Получение максимальной длины столбца
-    max_length = max([len(df[col]) for col in df.columns])
-
-    # Дозаполнение столбцов значениями по умолчанию
-    for col in df.columns:
-        if len(df[col]) < max_length:
-            df[col] = df[col].tolist() + [''] * (max_length - len(df[col]))
-
-    # Экспорт датафрейма в Excel таблицу
-    df.to_excel(filename, index=False)
-
-
-def ExtractPatternFromText(pattern, text):
-    match = re.findall(pattern, text, flags=re.IGNORECASE)
-    return match
-
 
 # исправить все рег. шаблоны
 def extract_sizes(row, col, df):
@@ -191,6 +149,10 @@ def extract_sizes(row, col, df):
     return sizes
 
 
+class Product():
+    def __init__(self):
+        pass
+
 class SexOptovik_ozon(main.Functions):
     ACCURANCY = 2  # больше - дольше
 
@@ -201,6 +163,7 @@ class SexOptovik_ozon(main.Functions):
              }
 
     API = None
+    ProductOptovik = tuple[list(), list()]
 
     def __init__(self, config):
         super().__init__(needAuth=False)
@@ -236,39 +199,61 @@ class SexOptovik_ozon(main.Functions):
         )
 
     def unpack_json(self, json_data) -> dict:
-        result = {'all': {},
-                  'cosmetic': {}
-                  }
+        big_categories_with_ids = {'Сувениры': [],
+                                   'Одежда': []
+                                   }
+        filtered = {
+            "Сувениры": [
+                92451036,
+                92451043,
+                47579342,
+                56322589,
+                17031662,
+                17035783,
+                17035672,
+                44396240,
+                17031686,
+                92451028,
+                92451029,
+                17035680,
+                17031677,
+                88084839
+            ],
+            "Одежда":
+                [17031674,
+                 47579342,
+                 17031689,
+                 17035677,
+                 17031681,
+                 17031680,
+                 17035672,
+                 17035673,
+                 17035680,
+                 38142203,
+                 74414685]
+        }
+        combined_set = {value for values_list in filtered.values() for value in values_list}
 
-        def process_category(category, parent_title=None):
-            category_id = category['category_id']
-            title = category['title']
-            children = category['children']
+        def extract_children_with_ids(children):
+            # Функция для извлечения пар (название-айди) детей категории
+            return [(child['title'], child['category_id']) for child in children if
+                    not child['children'] and child['category_id'] not in combined_set]
 
-            if not children:
-                result[parent_title][title] = category_id
+        for category in json_data['result'][0]['children']:
+            # Обходим детей главной категории
+            big_category_name = category['title']
+            children_with_ids = extract_children_with_ids(category['children'])
+            big_categories_with_ids[big_category_name] = children_with_ids
 
-            if category_id in [85697584, 17028960]:
-                parent_title = 'cosmetic'
-            elif category_id == 17035677:
-                parent_title = 'clothe'
-            else:
-                parent_title = 'all'
+        self.find_other_categories(big_categories_with_ids,
+                                   self.API.sendResponse(
+                                       url=f'{self.API.urlOzon}{self.API.OzonRequestURL["category-tree"]}',
+                                       body=self.API.createRequest(
+                                       )).json(),
+                                   filtered=filtered
+                                   )
 
-            for child in children:
-                process_category(child, parent_title)
-
-        categories = json_data['result']
-        for category in categories:
-            process_category(category)
-        self.FindingOtherCats(result,
-                              self.API.sendResponse(
-                                  url=f'{self.API.urlOzon}{self.API.OzonRequestURL["category-tree"]}',
-                                  body=self.API.createRequest(
-                                  )).json()
-                              )
-
-        return result
+        return big_categories_with_ids
 
     def getCatViaChatGPT(self, what, where, additionalPrompt):
         success = False
@@ -290,26 +275,40 @@ class SexOptovik_ozon(main.Functions):
                 print('Ошибка сервера. Жду 15 сек')
                 time.sleep(15)
 
-    def FindingOtherCats(self, dict, json):
+    def find_other_categories(self, dict, json, filtered):
+        def checkSubCategories(dict, catId, filtered) -> bool:
+            for i in list(dict.values()):
+                for j in i:
+                    if catId == j[1] and catId not in list(filtered.values())[0]:
+                        return True
+            return False
 
         def process_category(category):
             category_id = category['category_id']
-            if category_id in [17027484]: return
+            if checkSubCategories(dict, category_id, filtered) or category_id in [1000003681]:
+                return
             title = category['title']
             children = category['children']
 
-            erotic_keywords = ['эротич' in title.lower(), 'бдсм' in title.lower(), '18+' in title.lower()]
-            cosmetic_keywords = ['лубрикант' in title.lower(), 'презерватив' in title.lower(),
-                                 'интим' in title.lower()]
+            erotic_keywords = [
+                'эротич' in title.lower() and category_id not in filtered['Одежда'] + filtered['Сувениры'],
+                'бдсм' in title.lower() and category_id not in filtered['Одежда'] + filtered['Сувениры'],
+                '18+' in title.lower() and category_id not in filtered['Одежда'] + filtered['Сувениры']]
+            cosmetic_keywords = [keyword in title.lower() for keyword in self.config.keywords_cosmetic or
+                                 'тампоны' in title.lower()]
+            clothe_keywords = [category_id in filtered['Одежда']]
+            souvenirs_keywords = [category_id in filtered['Сувениры']]
 
             keywords_mapping = {
-                'cosmetic': cosmetic_keywords,
-                'all': erotic_keywords
+                'Интимная косметика': cosmetic_keywords,
+                'Секс игрушки': erotic_keywords,
+                'Одежда': clothe_keywords,
+                'Сувениры': souvenirs_keywords
             }
 
             for category, keywords in keywords_mapping.items():
                 if not children and any(keywords):
-                    dict[category][title] = category_id
+                    dict[category].append((title, category_id))
 
             for child in children:
                 process_category(child)
@@ -323,94 +322,375 @@ class SexOptovik_ozon(main.Functions):
     def getCatList(self):
         pass
 
+    @staticmethod
+    def defineCategoryList(category_information, dict) -> list:
+        souvenirs_keywords = any(
+            list(filter(lambda x: x.lower() in category_information.lower(), ['батарейки',
+                                                                              'печатная продукция',
+                                                                              'приколы',
+                                                                              'фанты']
+                        )))
+        sextoys_keywords = any(
+            list(filter(lambda x: x.lower() in category_information.lower(), ['секс-игрушки'
+                                                                              ])))
+        cosmetic_keywords = any(
+            list(filter(lambda x: x.lower() in category_information.lower(), ['косметика',
+                                                                              'препараты'
+                                                                              ])))
+        bdsm_keywords = any(
+            list(filter(lambda x: x.lower() in category_information.lower(), ['бдсм'
+                                                                              ])))
+        clothe_keywords = any(
+            list(filter(lambda x: x.lower() in category_information.lower(), ['белье'
+                                                                              ])))
+
+
+        condoms = 'презерватив' in category_information.lower()
+
+        if souvenirs_keywords:
+            return dict['Сувениры']
+        elif sextoys_keywords:
+            return dict['Секс игрушки']
+        elif cosmetic_keywords:
+            return dict['Интимная косметика'] + dict['No Use 18+'] + dict['Парфюмерия с феромонами']
+        elif bdsm_keywords:
+            return dict['БДСМ'] + [('БДСМ одежда', 17035677),
+                                   ('Эротическое белье', 38142203)]
+        elif clothe_keywords:
+            return dict['Одежда']
+        elif condoms:
+            return [('Презервативы', 22825295)]
+
     def createAPI(self):
         self.API = API.ServiceAPI(Host="api-seller.ozon.ru",
                                   ApiKey=self.creds['Api-Key'],
                                   ClientId=self.creds['Client-Id'],
                                   ContentType="application/json")
 
-    def checkNewProduct(self, catsOzon):
+    @staticmethod
+    def process_products_api_with_decorator(func):
+        def wrapper(self, *args, **kwargs):
+            results = []
+            last_id = ""
+            json = self.API.sendResponse(
+                url=f'{self.API.urlOzon}{self.API.OzonRequestURL["product-import-list"]}',
+                body=self.API.createRequest(last_id=last_id)
+            ).json()
 
-        def sendToSpreadSheet(upload):
-            success = False
-            while not success:
-                try:
-                    self.add_data_to_columns(
-                        self.config.SpreadsheetService,
-                        spreadsheet_id='1zlsbQWPkikBlRiznlkv6asIdRdaGBBHbmQu8M_6mfOU',
-                        target_row_index=i + 1,
-                        data={'id': upload[0], 'category': upload[1],
-                              'name': upload[2], 'description': upload[3]}
-                    )
-                    success = True
-                    upload = [[], [], [], []]
-                except googleapiclient.errors.HttpError as e:
-                    if e.status_code == 429:
-                        print('bro chill, chill')
-                    else:
-                        return 1
-            return 0
+            while json['result']['last_id'] != "":
+                for i in json['result']['items']:
+                    result = func(self, i)
+                    results.append(result)
 
+                json = self.API.sendResponse(
+                    url=f'{self.API.urlOzon}{self.API.OzonRequestURL["product-import-list"]}',
+                    body=self.API.createRequest(last_id=json['result']['last_id'])
+                ).json()
+
+            return results
+
+        return wrapper
+
+    @process_products_api_with_decorator
+    def proccessProductArticulars(self, item):
+        articular = self.cleanArticul(item['offer_id'], seller_code=str(self.config.id),
+                                      marketplace=self.config.marketplace)
+        if articular[0]:
+            return 'good', articular[1]
+        else:
+            return 'error', articular[1]
+
+    @process_products_api_with_decorator
+    def proccessProductsBarcodes(self, item):
+        return item['offer_id']
+
+    def checkBarcodes(self):
+        results = self.proccessProductsBarcodes()
+
+        batch_size = 1000
+        divided_results = [results[i:i + batch_size] for i in range(0, len(results), batch_size)]
+
+        c = 0
+
+        for i in range(len(divided_results)):
+            response = self.API.sendResponse(
+                url=f'{self.API.urlOzon}{self.API.OzonRequestURL["get-products-info"]}',
+                body=self.API.createRequest(
+                    offer_id=divided_results[i]
+                )
+            ).json()
+            for product in response['result']['items']:
+                if not product['barcode'] or len(product['barcodes']) == 0:
+                    cleanedArticular = self.cleanArticul(articular=product['offer_id'],
+                                                         seller_code=str(self.config.id),
+                                                         marketplace='oz',
+                                                         shortArticular=True
+                                                         )
+                    # проверка оптовика
+                    if cleanedArticular[0] and cleanedArticular[1] in self.ProductOptovik[0]:
+                        self.updateAttribute(attributes={
+
+                        })
+
+    def importArticularOptovik(self):
+        df = pd.read_csv('./SexOptovik/all_prod_info.csv', sep=';', encoding='cp1251')
+        self.ProductOptovik = tuple[list(df.iloc[:, 0]), list(df.iloc[:, 14])]
+
+    def importProductListAPI(self) -> tuple[set[Any], set[Any], set[Any]]:
+        good, error, lie = set(), set(), set()
+        results = self.proccessProductArticulars()
+        for result_type, result_value in results:
+            if result_type == 'good':
+                good.add(result_value)
+            elif result_type == 'error':
+                error.add(result_value)
+            elif result_type == 'lie':
+                lie.add(result_value)
+
+        return good, error, lie
+
+
+    def checkNewProduct(self, catsOzon, exist_products):
+        def calculateNewItems(df, exist_articuls) -> int:
+            totally = 0
+            productInfo = df.iloc[:, 3]
+            productInfo.dropna(inplace=True)
+            for i in range(len(productInfo)):
+                if (df.iloc[i, 0] not in exist_articuls):
+                    totally+=1
+            print(f'Всего найдено новых товаров: {totally}')
+            return totally
+
+        """
+        можно поменять на список, полученный через API
+        """
         df = pd.read_csv('./SexOptovik/all_prod_info.csv', sep=';', encoding='cp1251')
         productInfo = df.iloc[:, 3]
         productInfo.dropna(inplace=True)
 
-        upload = [[], [], [], []]
+        newItems = calculateNewItems(df=df,
+                                    exist_articuls=exist_products)
+        def unpack_json_category_types(category_ids) -> list:
+            total_types_list = []
+            all_attributes = {}
+            if isinstance(category_ids, (str, int)):
+                category_ids = [category_ids]
+            json_response = self.API.sendResponse(
+                url=self.API.urlOzon + self.API.OzonRequestURL["category-attributes"],
+                body=self.API.createRequest(category_id=category_ids, attribute_type="ALL", language="DEFAULT")
+            ).json()
+            for attributes in json_response['result']:
+                category_id = attributes['category_id']
+                attribute = attributes['attributes']
+                all_attributes[category_id] = attribute
+                for value in attribute:
+                    if value['name'] == 'Тип':
+                        getTypesList = self.API.sendResponse(
+                            url=self.API.urlOzon + self.API.OzonRequestURL["category-attribute-values"],
+                            body=self.API.createRequest(category_id=category_id,
+                                                        attribute_id=value['id'],
+                                                        language="DEFAULT",
+                                                        limit=50,
+                                                        last_value_id=0
+                                                        )
+                        ).json()
+                        for i in range(len(getTypesList['result'])):
+                            total_types_list.append(getTypesList['result'][i]['value'])
+            return [total_types_list, all_attributes]
 
-        exist_aritucls = self.getInfo()
-        for i in range(len(productInfo)):
-            if (df.iloc[i, 0] not in exist_aritucls):
-
-                send = df.iloc[i, 3] if not df.iloc[i, 3] is np.nan else df.iloc[i, 2]
-
-                # if '#' in send:
-                #     send = send[:send.find('#')-1]
-
-                res = self.getCatViaChatGPT(what=send,
-                                            where=(list(catsOzon['all'].keys()) + list(catsOzon['cosmetic'].keys())),
-                                            additionalPrompt='Пришли только ОДНУ категорию ИЗ СПИСКА ниже, которой соответствует этот товар.')
-
-                if '"' in res:
-                    res = re.search('"([^"]+)"', res).group(1)
 
 
-                upload[0].append(str(df.iloc[i, 0]))
-                upload[1].append(res)
-                upload[2].append(df.iloc[i, 2])
-                upload[3].append(send)
 
-                if (i + 1) % 50 == 0 or i == len(productInfo)-1:
-                    sendToSpreadSheet(upload)
-                # try:
-                #     category = re.split(r'[\s*|#*|>*|,*]', (productInfo[i]+re.sub(r'[^а-яА-Я\s]', '',df.iloc[i,2])).lower())
-                # except KeyError:
-                #     category = re.split(r'[\s*|#*|>*|,*]', re.sub(r'[^а-яА-Я\s]', '', df.iloc[i,2]).lower())
-                # category = list(set(category))
-                #
-                # for i in range(self.ACCURANCY+1):
-                #     category.append(' ')
-                #
-                # category = set(list(map(str, itertools.product(category, self.ACCURANCY))))
-                # res = findMatches(where=catsOzon, what=category)
-                print(res, '<< ', i + 1)
+        def extractListCats(catsOzon, inited_categories,original_categories):
+            for k, v in catsOzon.items():
+                for category in v:
+                    inited_categories[category[0]] = []
+                    if category[0] not in original_categories:
+                        original_categories.append(category[0])
 
-    def getInfo(self) -> set:
-        spreadsheet_id = '1zlsbQWPkikBlRiznlkv6asIdRdaGBBHbmQu8M_6mfOU'
-        range_name = 'Лист1!A1:Z'
+        def chunks(lst, n):
+            """Yield successive n-sized chunks from lst."""
+            for i in range(0, len(lst), n):
+                yield lst[i:i + n]
 
+        def getCategoryTypes(catsOzon, type=dict()):
+            """
+            :param: catsOzon -> dict
+            :param: type -> какого типа нужно получить результат
+            example:
+                "Секс-игрушки": [(Вибратор, 12345), ...]
+            """
+            all_types = {}
+            all_attributes = {}
+            for k,v in catsOzon.items():
+                # Делаем разбивку категорий на пакеты по 20
+                categories_chunks = list(chunks(v, 20))
+                for chunk in categories_chunks:
+                    category_ids = [category[1] for category in chunk]  # извлекаем идентификаторы категорий
+                    res = unpack_json_category_types(category_ids=category_ids)
+                    all_types[k] = res[0]
+                    all_attributes[k] = res[1]
+
+            if isinstance(type,dict):
+                return all_types, all_attributes
+
+        def category_initializer() -> dict:
+            done = 0
+            inited_categories = {}
+            original_categories = []
+            extractListCats(catsOzon=catsOzon,
+                            inited_categories=inited_categories,
+                            original_categories=original_categories
+                            )
+            types_dict, all_attributes = getCategoryTypes(catsOzon=catsOzon)
+
+            def getCategoryName(category_id):
+                for k, v in catsOzon.items():
+                    for category in v:
+                        if category[1] == category_id: return category[0]
+
+            names = {}
+            required = set()
+
+            for k, v in all_attributes.items():
+                for category in v:
+                    cat_name = getCategoryName(category)
+                    names[cat_name] = [('id', category)]
+                    for attribute in v[category]:
+                        names[cat_name].append(attribute['name'])
+                        if attribute['is_required']:
+                            required.add(attribute['name'])
+            def add_item_by_category_name(my_dict, category_name, item):
+                for key, array in my_dict.items():
+                    if key[0] == category_name:
+                        array.append(item)
+                        return
+            def itemRemains(i):
+                print(f'Выполнено: {round(float(i/newItems)*100, 3)}%')
+
+            def get_category_selection(product_type_lower, types_dict):
+                product_type_mapping = {
+                    'косметика, препараты': list(map(lambda x: x[0], types_dict['Интимная косметика'])),
+                    'презервативы': list(map(lambda x: x[0], types_dict['Интимная косметика']))
+                }
+
+                return product_type_mapping.get(product_type_lower, original_categories)
+
+            # Функция для добавления элемента по айди категории
+            def add_item_by_category_id(my_dict, category_id, item):
+                for key, array in my_dict.items():
+                    if key[1] == category_id:
+                        array.append(item)
+                        return
+
+            res = self.loadFromSpread(spreadID='1zlsbQWPkikBlRiznlkv6asIdRdaGBBHbmQu8M_6mfOU',
+                                      column=['Name', 'Description', 'Type'],
+                                      range_header='Полная база!A1:Z')
+
+            morph = pymorphy2.MorphAnalyzer()
+            knn = NearestNeighbors(n_neighbors=3, metric='cosine')
+            vectorizer = TfidfVectorizer(max_features=1000, ngram_range=(1, 2))
+            for i in range(len(res[0])):
+
+
+                """                ТУТ ВОЗНИКАЮТ ПРОБЛЕМЫ
+                
+                words_combination_only_cyrillic = set(filter(
+                    lambda x: is_cyrillic(x),
+                    (res[2][i]+res[1][i]).split())
+                )
+                inner_string = ' '.join(words_combination_only_cyrillic)
+                
+                """
+                product_type_lower = res[2][i].lower()
+                category_selection = get_category_selection(product_type_lower, catsOzon)
+
+                results = self.initialize_category(original_categories=category_selection,
+                                                   description=res[1][i]+res[0][i],
+                                                   morph=morph,
+                                                   knn=knn,
+                                                   vectorizer=vectorizer)
+                add_item_by_category_name(inited_categories, results[0], res[0][i])
+                done+=1
+                #print(results[0], "|--|", res[0][i])
+                #itemRemains(done)
+
+
+            return inited_categories
+
+        return category_initializer()
+
+    def outToExcel(self, out, path):
+        # Проверяем тип данных out
+        if isinstance(out, dict):
+            # Находим максимальную длину массивов в словаре
+            max_len = max(len(arr) for arr in out.values())
+
+            # Заполняем недостающие значения массивов в словаре NaN
+            for key, arr in out.items():
+                if len(arr) < max_len:
+                    out[key] = arr + [float('nan')] * (max_len - len(arr))
+
+            # Преобразуем словарь в DataFrame
+            df = pd.DataFrame(out)
+        elif isinstance(out, (list, tuple)):
+            # Преобразуем массив в DataFrame
+            df = pd.DataFrame(out)
+        else:
+            raise ValueError("Неподдерживаемый тип данных. out должен быть словарем или массивом (list или tuple).")
+
+        # Выгружаем DataFrame в Excel
+        df.to_excel(path, encoding='cp1251')
+
+    def initialize_category(self, original_categories, description, morph, knn, vectorizer):
+
+        @lru_cache(maxsize=10000)
+        def lemmatize(text):
+         words = text.split()
+         res = list()
+         for word in words:
+             p = morph.parse(word)[0]
+             res.append(p.normal_form)
+
+         return ' '.join(res)
+        categories = [lemmatize(cat.lower().replace(">", "").replace("#", "")) for cat in original_categories]
+
+        vectors = vectorizer.fit_transform(categories)
+
+        knn.fit(vectors)
+
+        def get_nearest_categories(desc):
+             desc = lemmatize(desc.lower().replace(">", "").replace("#", ""))
+             vec = vectorizer.transform([desc])
+             distances, indices = knn.kneighbors(vec)
+             return [original_categories[i] for i in indices[0]]
+
+        return get_nearest_categories(description)
+
+    def loadFromSpread(self, spreadID, range_header, column) -> list:
         # Запрос данных из таблицы
-        result = self.config.SpreadsheetService.spreadsheets().values().get(spreadsheetId=spreadsheet_id,
-                                                                            range=range_name).execute()
+        result = self.config.SpreadsheetService.spreadsheets().values().get(spreadsheetId=spreadID,
+                                                                            range=range_header).execute()
         values = result.get('values', [])
 
         # Преобразование в DataFrame
         df = pd.DataFrame(values[1:], columns=values[0])
         df = df.dropna()
-        # Получение списка значений из колонки "ID"
-        id_values = [int(x) for x in df['ID'].tolist()]
-        return set(id_values)
 
-    def add_data_to_columns(self, sheets_service, spreadsheet_id, data, target_row_index):
+        # Получение списка значений из колонки(-ок)
+        if isinstance(column, (int, str)):
+            column_values = df[column].tolist()
+            column_values = [int(x) for x in column_values]
+            return [column_values]
+        elif isinstance(column, list):
+            column_values = []
+            for col in column:
+                column_values.append(df[col].tolist())
+            return column_values
+        else:
+            return []
+
+    def loadToSpreadSheet(self, sheets_service, spreadsheet_id, data, target_row_index):
         # Получение метаданных таблицы
         spreadsheet = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
         sheets = spreadsheet.get('sheets', [])
@@ -494,64 +774,71 @@ class SexOptovik_ozon(main.Functions):
         while not success:
             try:
                 sheets_service.spreadsheets().values().batchUpdate(spreadsheetId=spreadsheet_id,
-                                                                        body=self.API.createRequest(
-                                                                            data=data,
-                                                                            valueInputOption="USER_ENTERED",
-                                                                            includeValuesInResponse="false",
-                                                                            responseValueRenderOption="FORMATTED_VALUE",
-                                                                            responseDateTimeRenderOption="SERIAL_NUMBER"
-                                                                        )).execute()
+                                                                   body=self.API.createRequest(
+                                                                       data=data,
+                                                                       valueInputOption="USER_ENTERED",
+                                                                       includeValuesInResponse="false",
+                                                                       responseValueRenderOption="FORMATTED_VALUE",
+                                                                       responseDateTimeRenderOption="SERIAL_NUMBER"
+                                                                   )).execute()
                 success = True
             except TimeoutError:
                 time.sleep(5)
         print('Data added successfully.')
 
     def start(self):
-        A = AnyData()
-        #existArticulsSet = self.getExistArticuls()
         try:
             self.importCredentials()
-            #self.downloadProducts()
+            # self.downloadProducts()
         except src.ExceptionService.Exceptions.CustomError as e:
             print('[!] Ошибка.\nПодробнее: {0}'.format(e))
             sys.exit(1)
         self.createAPI()
-        dictCatId = self.importCats()
+        self.importArticularOptovik()
+        existProducts = self.getExistArticuls()
+        # self.checkBarcodes()
 
-        self.checkNewProduct(dictCatId)
+        items = self.checkNewProduct(self.importCats(),
+                                     exist_products=existProducts)
+        self.outToExcel(out=items,
+                        path='./output.xlsx')
 
-        #print(json.dumps(self.API.sendResponse(
-        #    url=f'{self.API.urlOzon}{self.API.OzonRequestURL["category-tree"]}',
-        #    body=self.API.createRequest(
-        #        category_id=17027484
-        #    )).json(), ensure_ascii=False, indent=4, sort_keys=True))
-        # self.allocateNewProductCats(dictCatId)
-        ind = 0
+        print(items)
 
-    def getExistArticuls(self, columnsExcel=None) -> set:
-
-        if columnsExcel is None:
-            columnsExcel = {}
-
-        main.Functions.google_driver(google_ids=[self.config.driveIdExistItems],
-                                     file_names=[f"{self.config.shopName}_OZ.csv"],
-                                     path_os_type='./pool/SexOptovik/google_downloaded',
-                                     service=self.config.DriveService)
-        print('Считаю новые товары...')
-        productListPath = f'./pool/SexOptovik/google_downloaded/{self.config.shopName}_OZ.csv'
-        checkBrand = self.config.checkBrand
-
-        goods, errors, lieBrands = main.Functions.getDataCsv(self,
-                                                             path=productListPath,
-                                                             sellerCode=str(self.config.id),
-                                                             checkBrand=checkBrand,
-                                                             marketplace='oz')
+    def getExistArticuls(self) -> set:
+        goods, errors, lieBrands = self.importProductListAPI()
 
         df = pd.DataFrame({'OK': len(goods), 'ERRORS': len(errors), 'LIE': len(lieBrands)}, index=['>>'])
         print(df)
         print(f"\n\n{pd.DataFrame({'errors': list(errors)})}")
 
         return goods
+
+    def updateAttribute(self, attributes):
+        """
+        attributes:
+        словарь с параметрами:
+        items - list:
+            {
+            attributes - list:
+                {
+                complex_id - int
+                id - int
+                values - list:
+                    {
+                        dictionary_value_id - int
+                        value - string
+                    }
+                }
+            offer_id - string (артикул)
+            }
+        """
+        if not isinstance(attributes, dict):
+            raise src.ExceptionService.Exceptions.CustomError("Wrong attribute type:\
+            \nGot:{0}\nExpected{1}".format(type(attributes), type(dict)))
+        else:
+            pass
+
 
     @staticmethod
     def measure_time(f):
@@ -570,21 +857,3 @@ class SexOptovik_ozon(main.Functions):
 
         # Возвращаем вложенную функцию timed
         return timed
-
-    def matchType(self, name, s=None):
-        if not isinstance(name, set) or not isinstance(s, set) or not s:
-            return None
-        # Инициализируем переменные для хранения лучшего совпадения и минимального расстояния
-        best_match = None
-        min_distance = float("inf")
-        # Перебираем все значения из set
-        for i in name:
-            for value in s:
-                # Вычисляем расстояние Левенштейна между name и value с помощью модуля python-Levenshtein
-                distance = Levenshtein.distance(i, value)
-                # Если расстояние меньше минимального, обновляем лучшее совпадение и минимальное расстояние
-                if distance < min_distance:
-                    best_match = value
-                    min_distance = distance
-        # Возвращаем лучшее совпадение
-        return best_match

@@ -3,8 +3,6 @@ import os
 import src.ExceptionService.Exceptions as e
 
 import requests
-
-import main
 import pandas as pd
 class DB_loader:
 

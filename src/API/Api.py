@@ -29,6 +29,8 @@ class ServiceAPI:
         "product-import-geo-restrictions-catalog": "/v2/products/get-geo-restrictions-catalog-by-filter",
         "product-import-check": "/v1/product/import/info",
         "product-import-list": "/v2/product/list",
+        "get-product-info": "/v2/product/info",
+        "get-products-info": "/v2/product/info/list",
 
         "product-import-image": "/v1/product/pictures/import",
         "product-import-image-check": "/v1/product/pictures/info",
@@ -36,8 +38,8 @@ class ServiceAPI:
         "product-update-attributes": "/v1/product/attributes/update",
 
         "category-tree": "/v2/category/tree",
-        "attribute": "/v3/category/attribute",
-        "attribute-values": "/v2/category/attribute/values"
+        "category-attributes": "/v3/category/attribute",
+        "category-attribute-values": "/v2/category/attribute/values"
     }
 
     GoogleRequestURL = {

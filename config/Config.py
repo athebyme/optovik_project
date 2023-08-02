@@ -30,6 +30,9 @@ class Config:
     marketplace = str
     checkBrand = str
 
+    keywords_cosmetic = {
+        'презерватив', 'лубрикант'
+    }
 
     creds=None
     DriveService = Create_Service(CLIENT_SECRET_FILE, API_NAME, API_VERSION, SCOPES)
@@ -62,8 +65,8 @@ class ConfigInitializer(Config):
 
     def importCredentials(self, scopes):
         credentials = None
-        if os.path.exists('token.pickle'):
-            with open('token.pickle', 'rb') as token:
+        if os.path.exists("C:\csv_parser_wb\credentials\Google\client_secrets.json"):
+            with open("C:\csv_parser_wb\credentials\Google\client_secrets.json", 'rb') as token:
                 credentials = pickle.load(token)
         if not credentials or not credentials.valid:
             if credentials and credentials.expired and credentials.refresh_token:
@@ -72,7 +75,7 @@ class ConfigInitializer(Config):
                 flow = InstalledAppFlow.from_client_secrets_file('C:\csv_parser_wb\credentials\Google\client_secrets.json',
                                                                  ['https://www.googleapis.com/auth/spreadsheets'])
                 credentials = flow.run_local_server()
-            with open('token.pickle', 'wb') as token:
+            with open("C:\csv_parser_wb\credentials\Google\client_secrets.json", 'wb') as token:
                 pickle.dump(credentials, token)
         self.buildService(creds=credentials)
         return credentials

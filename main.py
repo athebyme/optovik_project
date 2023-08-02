@@ -150,6 +150,7 @@ class Functions:
 
     @staticmethod
     def cleanArticul(articular, seller_code, shortArticular=True, marketplace='wb'):
+        marketplace = marketplace.lower()
         temp = ''.join(articular)
         articular = ''.join(articular)
         original_code = seller_code
