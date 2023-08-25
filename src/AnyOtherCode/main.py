@@ -1,17 +1,16 @@
-import json
 from pathlib import Path
 
 import google.auth.exceptions
 import httplib2.error
-import pandas
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from tkinter import filedialog
 from pyfiglet import Figlet
 
 import src.ExceptionService.Exceptions
+from src.AnyOtherCode import SexOptovik_wb
 
-from Google import Create_Service
+from src.AnyOtherCode.Google import Create_Service
 from googleapiclient.http import MediaIoBaseDownload
 from itertools import product
 
@@ -151,49 +150,40 @@ class Functions:
     @staticmethod
     def cleanArticul(articular, seller_code, shortArticular=True, marketplace='wb'):
         marketplace = marketplace.lower()
-        temp = ''.join(articular)
-        articular = ''.join(articular)
         original_code = seller_code
-        new_articular = current_code = ''
-        if shortArticular:
-            set_of_post_codes = Functions.subForCleanData(sellerCode=seller_code,
-                                                          marketplace=marketplace)
+        temp = articular
 
+        if shortArticular:
+            set_of_post_codes = Functions.subForCleanData(sellerCode=seller_code, marketplace=marketplace)
         else:
-            set_of_post_codes = [
-                'Z1C1A0t-', 'W1C1Ayt', 'Z1C1L', 'Z1C1K', 'W1C1K', 'W1C1V', 'Z1C1A', 'W1C1L', 'W1C1A', 'Z1C1V'
-            ]
-        check_any_code_in = []
-        for i in set_of_post_codes:
-            check_any_code_in.append(i in articular)
-        if any(check_any_code_in):
-            for i in set_of_post_codes:
-                if i in articular:
-                    current_code = i
-                    break
+            set_of_post_codes = ['Z1C1A0t-', 'W1C1Ayt', 'Z1C1L', 'Z1C1K', 'W1C1K', 'W1C1V', 'Z1C1A', 'W1C1L', 'W1C1A',
+                                 'Z1C1V']
+
+        found_codes = [code for code in set_of_post_codes if code in articular]
+
+        if found_codes:
+            current_code = found_codes[0]
             ind = articular.find(current_code)
             if len(articular[:ind]) != len(seller_code):
                 seller_code = articular[:ind]
-            articular = articular[ind:]
-
-            c = len(current_code)
-            articular = articular.replace(current_code, '')
-
-            if len(articular) + c + len(seller_code) != len(temp):
+            articular = articular.replace(current_code, '', 1)
+            if len(articular) + len(current_code) + len(seller_code) != len(temp):
                 return False, temp
-            new_articular = f'{original_code}{set_of_post_codes[check_any_code_in.index(True)]}{articular}'
+            new_articular = f'{original_code}{current_code}{articular}'
         elif 'id' in articular:
             articular = articular[articular.find('-') + 1:]
             articular = articular[:articular.find('-')]
             if 4 + len(seller_code) + len(articular) != len(temp):
                 return False, temp
             new_articular = f'id-{articular}-{seller_code}'
+        elif re.search(r'z1c1s', articular.lower()):
+            match = re.search(r'z1c1s', articular.lower())
+            if match:
+                articular = articular[match.end():]
         else:
             return False, temp
-        if shortArticular:
-            return True, articular
-        else:
-            return True, new_articular
+
+        return True, articular if shortArticular else new_articular
 
     def getDataXslx(self, path, sellerCode, _row=3, checkBrand=''):
         articuls = set()
@@ -668,7 +658,7 @@ class Functions:
             with open(file) as f:
                 for line in f:
                     set_of_articulars.add(line.rstrip())
-            path = Path(cwd, 'pool', 'SexOptovik', 'wb_cats.txt')
+            path = Path(cwd, '../../pool', 'SexOptovik', 'wb_cats.txt')
         except UnicodeDecodeError:
             # doc = docx.getdocumenttext(file)
             text = []
@@ -746,8 +736,8 @@ class Functions:
                 input('Проверьте соединение и нажмите любую клавишу')
             except google.auth.exceptions.RefreshError:
                 print('Токен устарел. Необходимо произвести замену токена.')
-                if os.path.isfile('./token_drive_v3.pickle'):
-                    os.remove('./token_drive_v3.pickle')
+                if os.path.isfile('../../token_drive_v3.pickle'):
+                    os.remove('../../token_drive_v3.pickle')
                     print('Устаревший токен успешно удален. Необходимо пройти авторизацию заново.')
                     time.sleep(3)
                 else:
@@ -871,7 +861,7 @@ class Functions:
                 out.append(self.cleanArticul(articular=art,
                                              seller_code=seller_code)[1])
 
-        SO_file = pd.read_csv('./SexOptovik/all_prod_info.csv', encoding='cp1251', sep=';', header=None)
+        SO_file = pd.read_csv('../../SexOptovik/all_prod_info.csv', encoding='cp1251', sep=';', header=None)
         art_ph = list(zip(SO_file.iloc[:, 0].astype(str), SO_file.iloc[:, 13].astype(str)))
 
         _urls = out.copy()
@@ -889,7 +879,7 @@ class Functions:
                     _urls[i] = _url
                     out[i] = 'id-{}-{}'.format(out[i], seller_code)
 
-        if not os.path.exists('./photo'): os.mkdir('./photo')
+        if not os.path.exists('../../photo'): os.mkdir('../../photo')
         if not os.path.exists('./photo/{}'.format(seller_code)): os.mkdir('./photo/{}'.format(seller_code))
 
         return self.save_photo_file(_arts=out,
@@ -1373,7 +1363,7 @@ class SexOptovik(Functions):
                 google_ids.append('163cgrAFCKd01CGG1FhhT70ibF8d9F7B3')
                 google_names.append('wb_1299.xlsx')
 
-            path2 = Path(path, 'pool', 'SexOptovik', 'google_downloaded', 'wb')
+            path2 = Path(path, '../../pool', 'SexOptovik', 'google_downloaded', 'wb')
             try:
                 shutil.rmtree(path2)
                 os.rmdir(path2)
@@ -1381,15 +1371,15 @@ class SexOptovik(Functions):
                 os.mkdir(path2)
             try:
                 if type == 0:
-                    Functions.google_driver(google_ids, google_names, './pool/SexOptovik/google_downloaded/wb')
+                    Functions.google_driver(google_ids, google_names, '../../pool/SexOptovik/google_downloaded/wb')
                 else:
                     Functions.google_driver([google_ids[type]], [google_names[type]],
-                                            './pool/SexOptovik/google_downloaded/wb')
+                                            '../../pool/SexOptovik/google_downloaded/wb')
                 success = True
             except google.auth.exceptions.RefreshError:
                 print('Токен устарел. Необходимо заново авторизироваться в аккаунт.')
-                if os.path.isfile('./token_drive_v3.pickle'):
-                    os.remove('./token_drive_v3.pickle')
+                if os.path.isfile('../../token_drive_v3.pickle'):
+                    os.remove('../../token_drive_v3.pickle')
                     print('Устаревший токен успешно удален. Необходимо пройти авторищацию заново.')
                     time.sleep(3)
                 else:
@@ -1407,7 +1397,7 @@ class SexOptovik(Functions):
         extra = extra + '. ' + data_lower
         info = list(map(lambda data: data.strip(), data_lower.lower().split('#')))
         info = list(map(lambda info: info.split('>'), info))
-        with open('./pool/SexOptovik/google_downloaded/wb/wb_cats.txt') as f:
+        with open('../../pool/SexOptovik/google_downloaded/wb/wb_cats.txt') as f:
             for i in f:
                 cats_wb.add(i.rstrip().lower())
         cats_wb.remove('')
@@ -1513,10 +1503,10 @@ class SexOptovik(Functions):
         return res[0], data.replace(' #', '.')
 
     def upload_cats(self):
-        status_file = os.path.isfile('./pool/SexOptovik/google_downloaded/wb/wb_cats.txt')
+        status_file = os.path.isfile('../../pool/SexOptovik/google_downloaded/wb/wb_cats.txt')
         if status_file:
             set_wb_cats = set()
-            with open('./pool/SexOptovik/google_downloaded/wb/wb_cats.txt') as f:
+            with open('../../pool/SexOptovik/google_downloaded/wb/wb_cats.txt') as f:
                 for i in f:
                     set_wb_cats.add(i.lower().rstrip())
             set_wb_cats.remove('')
@@ -1554,7 +1544,7 @@ class SexOptovik(Functions):
                 f'Загрузить новые данные ?\n 1 - Да\n0 - Нет\n2  -  Только обновить wb_{self.seller_code}.xslx\n'))
         if choose == 1:
             cwd = self.cwd
-            path = Path(cwd, 'pool', 'SexOptovik')
+            path = Path(cwd, '../../pool', 'SexOptovik')
             try:
                 shutil.rmtree(path)
                 os.rmdir(path)
@@ -1578,10 +1568,10 @@ class SexOptovik(Functions):
                 else:
                     sys.exit(0)
             url = 'http://www.sexoptovik.ru/files/all_prod_info.csv'
-            file_path = self.download_universal(url, path_def='./SexOptovik')
+            file_path = self.download_universal(url, path_def='../../SexOptovik')
 
             url = 'http://www.sexoptovik.ru/files/all_prod_d33_.csv'
-            file_path = self.download_universal(url, path_def='./SexOptovik')
+            file_path = self.download_universal(url, path_def='../../SexOptovik')
         elif choose == 2:
             try:
                 path = f'./pool/SexOptovik/google_downloaded/wb/wb_{self.seller_code}.xlsx'
@@ -1596,7 +1586,7 @@ class SexOptovik(Functions):
                     google_id.append('163cgrAFCKd01CGG1FhhT70ibF8d9F7B3')
                     google_name.append('wb_1299.xlsx')
                 self.google_driver(google_ids=google_id, file_names=google_name,
-                                   path_os_type='./pool/SexOptovik/google_downloaded/wb')
+                                   path_os_type='../../pool/SexOptovik/google_downloaded/wb')
 
         else:
             print('Продолжаю со старыми данными\n')
@@ -1618,21 +1608,21 @@ class SexOptovik(Functions):
         set_of_data_artics, errors_set_data_artics = Functions.getDataXslx(self, PATH_GOOGLE_XLSX,
                                                                            sellerCode=self.seller_code)
         blacklist_brands = Functions.uploadFromFile(self,
-                                                    file_path='./pool/SexOptovik/google_downloaded/wb/blacklist_brands_wb.txt',
+                                                    file_path='../../pool/SexOptovik/google_downloaded/wb/blacklist_brands_wb.txt',
                                                     isSet=True)
         blacklist_brands = list(map(lambda item: item.rstrip().lower(), blacklist_brands))
 
         PROBLEM_ITEMS = Functions.uploadFromFile(self,
-                                                 file_path='./pool/SexOptovik/google_downloaded/wb/problem_items_wb_id.txt',
+                                                 file_path='../../pool/SexOptovik/google_downloaded/wb/problem_items_wb_id.txt',
                                                  isSet=True)
         PROBLEM_ITEMS = list(map(lambda item: item.rstrip().lower(), PROBLEM_ITEMS))
         abs_new_items = 0
         self.current_cats_wb = self.upload_cats()
 
-        opisanie = Functions.uploadFromFile(self, file_path='./SexOptovik/all_prod_d33_.csv', isSet=False)
+        opisanie = Functions.uploadFromFile(self, file_path='../../SexOptovik/all_prod_d33_.csv', isSet=False)
         print(f'Ошибки: {errors_set_data_artics}')
 
-        file_path = './SexOptovik/all_prod_info.csv'
+        file_path = '../../SexOptovik/all_prod_info.csv'
 
         path_100 = f'./!parsed_items_{self.CONST_AMOUNT_OF_XLSX_ITEMS}'
         try:
@@ -1652,7 +1642,7 @@ class SexOptovik(Functions):
                 input('[!] Пожалуйста, закройте все открытые файлы из папки на нажмите любую клавишу.\n')
 
         success = False
-        _path = './!parsed_full'
+        _path = '../../!parsed_full'
         while not success:
             try:
                 shutil.rmtree(_path)
@@ -2042,7 +2032,7 @@ class OzonParser(Functions):
 
     @staticmethod
     def preparing_for_parsing_files_download():
-        path = './pool/SexOptovik/Ozon'
+        path = '../../pool/SexOptovik/Ozon'
         success = False
         while not success:
             try:
@@ -2061,7 +2051,7 @@ class OzonParser(Functions):
             name_ids.append('oz-1277.csv')
         Functions.google_driver(google_ids=download_id,
                                 file_names=name_ids,
-                                path_os_type='./pool/SexOptovik/Ozon')
+                                path_os_type='../../pool/SexOptovik/Ozon')
 
     @staticmethod
     def initialize_cats():
@@ -2082,7 +2072,7 @@ class OzonParser(Functions):
     def initialize_extra_info():
         art_inf = {}
         try:
-            path = './SexOptovik/all_prod_d33_.csv'
+            path = '../../SexOptovik/all_prod_d33_.csv'
             with open(path, 'r', encoding='utf-8') as extra_info_file:
                 for line in extra_info_file:
                     line_array = list(map(str, line.split(';')))
@@ -2110,7 +2100,7 @@ class OzonParser(Functions):
         set_of_data_artics, errors_set_data_artics = Functions.getDataXslx(self, PATH_GOOGLE_XLSX,
                                                                            sellerCode=self.seller_code,
                                                                            marketplace='oz')
-        with open('./SexOptovik/all_prod_info.csv', 'r') as main_data_file:
+        with open('../../SexOptovik/all_prod_info.csv', 'r') as main_data_file:
             COUNT_PARSED_ITEMS = COUNT_PROBLEMS_ITEMS = 0
             for rows in main_data_file:
                 DATA = list(map(lambda it: it.replace('"', ''), rows.split(';')))
@@ -2158,8 +2148,8 @@ CONST_AV_CODES = {'1277', '1299', '1366'}
 
 @staticmethod
 def create_all_folders():
-    if not Path.exists(Path(os.getcwd(), 'pool')):
-        os.mkdir(Path(os.getcwd(), 'pool'))
+    if not Path.exists(Path(os.getcwd(), '../../pool')):
+        os.mkdir(Path(os.getcwd(), '../../pool'))
 
     return
 
@@ -2184,35 +2174,7 @@ if __name__ == '__main__':
 
     a = db.DB_loader()
     # print(a.getInfo(1277, 'wb'))
-    """
-    test api methods
-    """
-    API = API.ServiceAPI(
-        Host="api-seller.ozon.ru",
-        ClientId="601600",
-        ApiKey="4185804a-6c3c-4c2b-a0a8-e028dc521761",
-        ContentType="application/json"
-    )
-    url = f'https://api-seller.ozon.ru' + API.OzonRequestURL['category-tree']
-    try:
-        response = API.sendResponse(
-            url=url,
-            body=API.createRequest(
-                                   category_id=17027484
-                                   ))
-        formatted_json = json.dumps(response.json(), indent=4, ensure_ascii=False)
 
-
-        # Сохранение JSON в файл
-        with open('output.json', 'w') as file:
-            file.write(formatted_json)
-    except src.ExceptionService.Exceptions.CustomError as e:
-        print(e)
-    except BaseException as e:
-        print(e)
-    sys.exit(0)
-
-    cur_time = time.time()
     create_all_folders()
 
     seller_code = int(input('Введите код продавца: '))
@@ -2237,42 +2199,8 @@ if __name__ == '__main__':
         val = checked_value(VALUES=VALUES,
                             left=1,
                             right=3)
-        _main = main.Functions()
+        _main = src.AnyOtherCode.main.Functions()
         _main.update_photo(seller_code=str(seller_code),
                            warehouse=VALUES.get(val))
         opt = SexOptovik_wb.SexOptovik(f'{seller_code}')
         sys.exit(0)
-    # OzonParser = OzonParser(f'{seller_code}')
-    # OzonParser.start_parsing()
-
-    # input()
-
-    # import Ozon_Changer_ID
-
-    # oz_ch = Ozon_Changer_ID.OzonChangerID(seller_code)
-    # oz_ch.start()
-
-    # выбор поставщика
-    func_code = get_provider()
-    print(f'Выбрано ->  {func_code}.')
-    codes_prov = setup_providers(func_code)
-
-    input()
-
-    barc = Functions.getFolderFile(0, ' штрихкоды ')
-    barcodes = Functions.uploadBarcodes(barc).copy()
-
-    data_path = Functions.getFolderFile(0, ' уже добавленные товары ')
-    data_set = Functions.getDataXslx(data_path, sellerCode='1277')
-
-    kema = kema_parser('1366', barcodes, data_set)
-    a = Functions.workWithExcel(1)
-    all_media_files = kema.start_parser()
-
-    ch = input('Вы хотите загрузить фото-медиа файлы?\nДа/Нет\n').lower()
-    if ch == 'да':
-        media_path = Functions.downloadMedia(all_media_files)
-        print(f'Успешно обновлено {len(all_media_files)} товаров. Фотографии находятся в папке{media_path}')
-        input('\nВы загрузили их на сайт?')
-    time.sleep(0.5)
-    print(f'Готово !\nВремя выполнения: {round(time.time() - cur_time)}')

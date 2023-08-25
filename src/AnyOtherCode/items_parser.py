@@ -308,11 +308,11 @@ def dir_work(isSave):
     if(isSave):
         path_excel_wb = cwd
         os.chdir(path_excel_wb)
-        return os.listdir('.'), path_excel_wb
+        return os.listdir('../..'), path_excel_wb
     else: 
         path_excel_wb = Path(abs_path, '!put_wb_here')
         os.chdir(path_excel_wb)
-        return os.listdir('.')
+        return os.listdir('../..')
 def wcurex(wb_data):
     from pathlib import Path
     dw = dir_work(True)

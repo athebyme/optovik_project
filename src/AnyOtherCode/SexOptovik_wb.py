@@ -3,7 +3,7 @@ from itertools import product
 
 import google.auth.exceptions
 
-import main
+from src.AnyOtherCode import main
 import os
 import re
 import shutil
@@ -11,7 +11,7 @@ import sys
 import time
 
 
-class SexOptovik(main.Functions):
+class SexOptovik():
     cwd = os.getcwd()
     optovik_items = {}
     current_cats_wb = set()
@@ -359,8 +359,8 @@ class SexOptovik(main.Functions):
                     success = True
                 except google.auth.exceptions.RefreshError:
                     print('Токен устарел. Необходимо заново авторизироваться в аккаунт.')
-                    if os.path.isfile('./token_drive_v3.pickle'):
-                        os.remove('./token_drive_v3.pickle')
+                    if os.path.isfile('token_drive_v3.pickle'):
+                        os.remove('token_drive_v3.pickle')
                         print('Устаревший токен успешно удален. Необходимо пройти авторищацию заново.')
                         time.sleep(3)
                     else:
@@ -378,7 +378,7 @@ class SexOptovik(main.Functions):
         extra = extra + '. ' + data_lower
         info = list(map(lambda data: data.strip(), data_lower.lower().split('#')))
         info = list(map(lambda info: info.split('>'), info))
-        with open('./pool/SexOptovik/google_downloaded/wb/wb_cats.txt') as f:
+        with open('pool/SexOptovik/google_downloaded/wb/wb_cats.txt') as f:
             for i in f:
                 cats_wb.add(i.rstrip().lower())
         cats_wb.remove('')
@@ -478,10 +478,10 @@ class SexOptovik(main.Functions):
         return res[0], data.replace(' #', '.')
 
     def upload_cats(self):
-        status_file = os.path.isfile('./pool/SexOptovik/google_downloaded/wb/wb_cats.txt')
+        status_file = os.path.isfile('pool/SexOptovik/google_downloaded/wb/wb_cats.txt')
         if status_file:
             set_wb_cats = set()
-            with open('./pool/SexOptovik/google_downloaded/wb/wb_cats.txt') as f:
+            with open('pool/SexOptovik/google_downloaded/wb/wb_cats.txt') as f:
                 for i in f:
                     set_wb_cats.add(i.lower().rstrip())
             set_wb_cats.remove('')
@@ -501,8 +501,8 @@ class SexOptovik(main.Functions):
     def init_stocks(self):
         set_stocks = set()
         url = 'http://sexoptovik.ru/files/all_prod_prices__.csv'
-        main.Functions.download_universal(url, path_def='./SexOptovik')
-        with open(r"./SexOptovik/all_prod_prices__.csv") as f:
+        main.Functions.download_universal(url, path_def='SexOptovik')
+        with open(r"SexOptovik/all_prod_prices__.csv") as f:
             f.readline()
             for lines in f:
                 line = lines.split(";")
@@ -562,7 +562,7 @@ class SexOptovik(main.Functions):
             data[1].append(i)
         if(len(data[2]) > 1):
             main.Functions.save_data(data, seller_code, path=path, original_name=original_name, _print=_print,
-                                 text_print=text_print)
+                                     text_print=text_print)
 
     @staticmethod
     def remove_folder(path):
@@ -600,7 +600,7 @@ class SexOptovik(main.Functions):
                 input(f'Загрузить новые данные ?\n 1 - Да\n0 - Нет\n2  -  Только обновить wb_{self.seller_code}.xslx\n'))
         if choose == 1:
             cwd = self.cwd
-            path = './pool/SexOptovik/google_downloaded/wb'
+            path = 'pool/SexOptovik/google_downloaded/wb'
             try:
                 self.download_from_google(type=0, path=path)
             except google.auth.exceptions.TransportError:
@@ -614,10 +614,10 @@ class SexOptovik(main.Functions):
                 else:
                     sys.exit(0)
             url = 'http://www.sexoptovik.ru/files/all_prod_info.csv'
-            file_path = main.Functions.download_universal(url, path_def='./SexOptovik')
+            file_path = main.Functions.download_universal(url, path_def='SexOptovik')
 
             url = 'http://www.sexoptovik.ru/files/all_prod_d33_.csv'
-            file_path = main.Functions.download_universal(url, path_def='./SexOptovik')
+            file_path = main.Functions.download_universal(url, path_def='SexOptovik')
         elif choose == 2:
             path = f'./pool/SexOptovik/google_downloaded/wb/wb_{self.seller_code}.xlsx'
             try:
@@ -636,7 +636,7 @@ class SexOptovik(main.Functions):
                 google_id.append('1c8eaqFkxmYOPsshXwvMP9z5HaXliS-hs')
                 google_name.append('wb_1366.xlsx')
             self.google_driver(google_ids=google_id, file_names=google_name,
-                               path_os_type='./pool/SexOptovik/google_downloaded/wb')
+                               path_os_type='pool/SexOptovik/google_downloaded/wb')
 
         else:
             print('Продолжаю со старыми данными\n')
@@ -667,23 +667,23 @@ class SexOptovik(main.Functions):
         #errors_set_data_artics = set()
 
         blacklist_brands = main.Functions.uploadFromFile(self,
-                                                         file_path='./pool/SexOptovik/google_downloaded/wb/blacklist_brands_wb.txt',
+                                                         file_path='pool/SexOptovik/google_downloaded/wb/blacklist_brands_wb.txt',
                                                          isSet=True)
         blacklist_brands = list(map(lambda item: item.rstrip().lower(), blacklist_brands))
 
         PROBLEM_ITEMS = main.Functions.uploadFromFile(self,
-                                                      file_path='./pool/SexOptovik/google_downloaded/wb/problem_items_wb_id.txt',
+                                                      file_path='pool/SexOptovik/google_downloaded/wb/problem_items_wb_id.txt',
                                                       isSet=True)
         PROBLEM_ITEMS = list(map(lambda item: item.rstrip().lower(), PROBLEM_ITEMS))
         abs_new_items = 0
         self.current_cats_wb = self.upload_cats()
 
-        opisanie = main.Functions.uploadFromFile(self, file_path='./SexOptovik/all_prod_d33_.csv', isSet=False)
+        opisanie = main.Functions.uploadFromFile(self, file_path='SexOptovik/all_prod_d33_.csv', isSet=False)
         print(f'Ошибки: {errors_set_data_artics}')
 
-        pathLimitProds = f'./!parsed_items_{self.ProdLimit}'
-        pathHealthProds = f'./!parsed_items_{self.ProdLimit}_health'
-        file_path = './SexOptovik/all_prod_info.csv'
+        pathLimitProds = f'!parsed_items_{self.ProdLimit}'
+        pathHealthProds = f'!parsed_items_{self.ProdLimit}_health'
+        file_path = 'SexOptovik/all_prod_info.csv'
         try:
             os.mkdir(pathLimitProds)
         except FileExistsError:
@@ -708,7 +708,7 @@ class SexOptovik(main.Functions):
                 input('Пожалуйста, закройте все открытые файлы из папки на нажмите любую клавишу.\n')
 
         success = False
-        _path = './!parsed_full'
+        _path = '!parsed_full'
         while not success:
             try:
                 shutil.rmtree(_path)
@@ -1133,4 +1133,3 @@ class SexOptovik(main.Functions):
         # if not(res):
         #    print('Чтобы начать заново нажмите Enter\nЧтобы выйти нажмите Escape')
 
-        # p 'Доделать !!!!'

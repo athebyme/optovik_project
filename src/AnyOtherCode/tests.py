@@ -2,14 +2,16 @@ from __future__ import print_function
 
 import os
 import sys
+from functools import lru_cache
 
 # print(input())
 import openpyxl
 import pandas as pd
-from py._builtin import execfile
+import pymorphy2
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.neighbors import NearestNeighbors
 
-import config.Config
-import main
+from src.AnyOtherCode import main
 from src.dataConfigs.regEx import rePattern
 
 
@@ -1001,13 +1003,12 @@ def check_v(s):
 
 
 def re_init_photo():
-    import main
     a = main.Functions()
     dict = {}
     saver = {1: ['Артикул товара'], 2: ['Медиафайлы']}
     path = main.Functions.getFolderFile(0, item='товары без фото')
     set_a = a.getDataXslx(path=path, sellerCode='1277', _row=6)[0]
-    with open('./SexOptovik/all_prod_info.csv', 'r+') as f:
+    with open('../../SexOptovik/all_prod_info.csv', 'r+') as f:
         for lines in f:
             s = ''
             DATA = list(map(lambda line: line.replace('"', ''), lines.split(';')))
@@ -1074,14 +1075,12 @@ def photo(path='', _row=0, checkBrand='', seller_code=''):
 #             saver[2].append(s)
 #     main.Functions().save_data(saver, seller_code='1366', path=r"C:\Users\Anton\Desktop")
 
-from config import shopConfs
-
 
 def getConfig(sellerCode: str):
     conf = None
     v = -1
-    if not os.path.isdir('./config'): os.mkdir('./config')
-    if not os.path.isdir('./config/shopConfs'): os.mkdir('./config/shopConfs')
+    if not os.path.isdir('../../config'): os.mkdir('../../config')
+    if not os.path.isdir('../../config/shopConfs'): os.mkdir('../../config/shopConfs')
     if sellerCode == '1168':
         success = False
         while not success:
@@ -1112,7 +1111,6 @@ def getConfig(sellerCode: str):
 
 
 import SexOptovik_ozon
-from config.Config import Config
 
 
 def getCategoryFilesPaths(path):
@@ -1132,20 +1130,20 @@ def checkCharset(path):
 
 
 def download_msc():
-    from main import Functions as func
-    main = func(abs_path='./', provider='', sellerCode='')
+    from src.AnyOtherCode.main import Functions as func
+    main = func(abs_path='../../', provider='', sellerCode='')
     name = ['as_price_and_num_rrc.csv', 'ke_price_and_num_rrc.csv', 'an_price_and_num_rrc.csv']
     url = ['http://www.sexoptovik.ru/mp/as_price_and_num_rrc.csv',
            'http://www.sexoptovik.ru/mp/ke_price_and_num_rrc.csv',
            'http://www.sexoptovik.ru/mp/an_price_and_num_rrc.csv']
-    if not os.path.exists('./MSC'): os.mkdir('./MSC')
+    if not os.path.exists('../../MSC'): os.mkdir('../../MSC')
     for i in range(len(name)):
         path = f'./MSC/{name[i]}'
         try:
             os.remove(path)
-            main.download_universal(url=url[i], path_def='./MSC')
+            main.download_universal(url=url[i], path_def='../../MSC')
         except OSError:
-            main.download_universal(url=url[i], path_def='./MSC')
+            main.download_universal(url=url[i], path_def='../../MSC')
 
 
 def getArticulBrand(path, encoding):
@@ -1203,7 +1201,6 @@ def getArticulBrand(path, encoding):
 
 
 def changeBrands(path, brand):
-    import re
     # download_msc()
     theOne = None
     newed = 0
@@ -1215,9 +1212,9 @@ def changeBrands(path, brand):
     _ke = _id = _as = _an = 0
     ke_dict = {'----': 1}
     ke_photo = {}
-    as_dict, as_photo = getArticulBrand(path='./MSC/as_price_and_num_rrc.csv', encoding='cp1251')
+    as_dict, as_photo = getArticulBrand(path='../../MSC/as_price_and_num_rrc.csv', encoding='cp1251')
     # ke_dict = getArticulBrand(path='./MSC/ke_price_and_num_rrc.csv', encoding='UTF-8')
-    an_dict, an_photo = getArticulBrand(path='./MSC/an_price_and_num_rrc.csv', encoding='cp1251')
+    an_dict, an_photo = getArticulBrand(path='../../MSC/an_price_and_num_rrc.csv', encoding='cp1251')
     files = getCategoryFilesPaths(path=path)
     photo = ['']
     getAllMSC = None
@@ -1337,11 +1334,41 @@ def ExtractPatternFromText(INPUT_DATA, keywords=None):
                     result[word] = [result[word], {words_between: {'min': value1, 'max': value2}}]
     return result
 
+def initialize_category(original_categories, description, morph, knn, vectorizer):
 
+    @lru_cache(maxsize=10000)
+    def lemmatize(text):
+     words = text.split()
+     res = list()
+     for word in words:
+         p = morph.parse(word)[0]
+         res.append(p.normal_form)
 
+     return ' '.join(res)
+    categories = [lemmatize(cat.lower().replace(">", "").replace("#", "")) for cat in original_categories]
+
+    vectors = vectorizer.fit_transform(categories)
+
+    knn.fit(vectors)
+
+    def get_nearest_categories(desc):
+        desc = lemmatize(desc.lower().replace(">", "").replace("#", ""))
+        vec = vectorizer.transform([desc])
+        distances, indices = knn.kneighbors(vec)
+        return [original_categories[i] for i in indices[0]]
+
+    return get_nearest_categories(description)
+def test(text, categories):
+    morph = pymorphy2.MorphAnalyzer()
+    knn = NearestNeighbors(n_neighbors=2, metric='cosine')
+    vectorizer = TfidfVectorizer(max_features=1000, ngram_range=(1, 2))
+    print(initialize_category(original_categories=categories,
+                              description=text,
+                              vectorizer=vectorizer,
+                              morph=morph,
+                              knn=knn))
 
 if __name__ == '__main__':
-
     # changeBrands(path=r"C:\Users\Anton\Desktop\вб", brand=True)
     # from config.presets.sizes import Sizes
     # A = Sizes().initWeight('вес одного шарика 1.5 кг, вес второго 150 гр, всего 15гр * 10 шт')
@@ -1360,14 +1387,14 @@ if __name__ == '__main__':
     # text = "размер трусиков универсальный (40-46), внутренний диаметр колец 3, 4 и 5 см".replace(' и ', '-')
 
     # text = 'общая длина 12 см, глубина проникновения 9,5 см, длина клит. стим-ра 6,5 см, диаметр 2,1-3 см'
-    texts = [
-        'длина фаллоса 14 см, макс. диаметр 3 см; длина вагин. фал-са 7 см, макс. диаметр 3,2 см, длина анал. фал-са 9,5 см, макс. диаметр 2,8 см',
-        'длина до кольца 17,5 см, вес одного шарика 15г, вес другого 20г',
-        'длина вибро-втулки 13,5 см, макс. диаметр 3 см; длина втулки 7,5 см, макс. диаметр 2,4 см; длина цепочки 21 см, макс. диаметр 2,4 см',
-        'общая длина 24,3 см, длина до пульта 19,5 см, диаметр 3-3,8 см']
-    #print(ExtractPatternFromText(
+    # texts = [
+    #     'длина фаллоса 14 см, макс. диаметр 3 см; длина вагин. фал-са 7 см, макс. диаметр 3,2 см, длина анал. фал-са 9,5 см, макс. диаметр 2,8 см',
+    #     'длина до кольца 17,5 см, вес одного шарика 15г, вес другого 20г',
+    #     'длина вибро-втулки 13,5 см, макс. диаметр 3 см; длина втулки 7,5 см, макс. диаметр 2,4 см; длина цепочки 21 см, макс. диаметр 2,4 см',
+    #     'общая длина 24,3 см, длина до пульта 19,5 см, диаметр 3-3,8 см']
+    # print(find_sizes(
     #    'ширина кожаной части оков 3,7 см, длина оков 25,5 см, общая длина сцепки с карабинами 13 см'),
     #    )
-    # for k,v in ExtractPatternFromText(texts).items():
+    # for k,v in find_sizes(texts).items():
     #     print(k,v)
     startOzon()

@@ -29,17 +29,22 @@ class ServiceAPI:
         "product-import-geo-restrictions-catalog": "/v2/products/get-geo-restrictions-catalog-by-filter",
         "product-import-check": "/v1/product/import/info",
         "product-import-list": "/v2/product/list",
+
+
         "get-product-info": "/v2/product/info",
         "get-products-info": "/v2/product/info/list",
 
         "product-import-image": "/v1/product/pictures/import",
         "product-import-image-check": "/v1/product/pictures/info",
 
+        "product-info-attributes": "/v3/products/info/attributes",
         "product-update-attributes": "/v1/product/attributes/update",
 
         "category-tree": "/v2/category/tree",
         "category-attributes": "/v3/category/attribute",
-        "category-attribute-values": "/v2/category/attribute/values"
+        "category-attribute-values": "/v2/category/attribute/values",
+
+        "archive-items": "/v1/product/archive"
     }
 
     GoogleRequestURL = {
@@ -62,14 +67,15 @@ class ServiceAPI:
             response.raise_for_status()  # Генерирует исключение при неудачном запросе (например, ошибка 404)
             return response
         except requests.exceptions.RequestException as e:
-            raise src.ExceptionService.Exceptions.CustomError("[!] Ошибка при отправке запроса: {0}\n"
-                                                              "Подробно:{1}".format(e,json.dumps(response.json())))
+            raise src.ExceptionService.Exceptions.CustomError(message="[!] Ошибка при отправке запроса: {0}\n"
+                                                              "Подробно:{1}".format(e,json.dumps(response.json())),
+                                                              error_type=requests.RequestException)
 
     def exportCsvLog(self, response):
         data_dict = pd.DataFrame.from_dict(json.loads(response)).T  # Развертываем словари во вложенных столбцах
         data_dict.to_csv(path_or_buf='./API_LOG.csv', index=False, header=True)  # Сохраняем DataFrame в CSV файл без индекса
 
-    def createFilter(**kwargs) -> dict:
+    def createFilter(self, **kwargs) -> dict:
         """
     Создает словарь с фильтром на основе переданных аргументов.
 
@@ -89,8 +95,7 @@ class ServiceAPI:
         <sort_dir>    -  string
     """
         filter_dict = {key: value for key, value in kwargs.items() if value is not None}
-        filter = {"filter": filter_dict}
-        return filter
+        return filter_dict
     def createRequest(self, **kwargs) -> dict:
         """
     Создает тело запроса (body) с параметрами.

@@ -1,6 +1,4 @@
-import time
-
-import main
+from src.AnyOtherCode import main
 import openpyxl
 import glob
 import os
@@ -39,8 +37,8 @@ class OzonChangerID():
                         articuls.add(articular[1])
                     else:
                         errors.add(articular[1])
-            if not os.path.exists('./!changed_oz'):
-                os.mkdir('./!changed_oz')
+            if not os.path.exists('../../!changed_oz'):
+                os.mkdir('../../!changed_oz')
             if not os.path.exists(f'./!changed_oz/{self.seller_code}'):
                 os.mkdir(f'./!changed_oz/{self.seller_code}')
             name_of_xlsx = file[file.rfind("\\")+1:]

@@ -1,157 +1,28 @@
 import sys
 import re
 import time
-from typing import Tuple, Set, Any
+from collections import defaultdict
+from typing import Any
 from functools import lru_cache
+
+import numpy as np
 import pymorphy2
-from numba import njit
+from numba import jit
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.neighbors import NearestNeighbors
 
-import openai
-
 import pandas as pd
 
-import main
+from src.AnyOtherCode import main
 
 import src.ExceptionService.Exceptions
 from config.Config import Config
-from config.presets.AnyData import AnyData
 from src.API import Api as API
+from src.Product import Product
+from src.Product.Product_Parser import ProductParser
 
 # исправить все рег. шаблоны
-def extract_sizes(row, col, df):
-    # получить значение ячейки
-    value = df.iloc[row, col]
-    sizes = {}
 
-    if pd.isna(value): return sizes
-
-    # поиск значений с помощью регулярных выражений
-    # length = re.findall(r'длина[\s\.:]+([\d\.,]+)\s*см', value, flags=re.IGNORECASE)
-    length = re.findall(r'длина.*?([\d\.,]+)\s*(?:см|мм|м)', value, flags=re.IGNORECASE)
-    if length:
-        length = [float(l.replace(',', '.')) for l in length[0].split('-')]
-        if 'мм' in value:
-            sizes['длина'] = sum(length) / len(length) / 10
-        elif 'м' in value:
-            sizes['длина'] = sum(length) / len(length) * 100
-        else:
-            sizes['длина'] = sum(length) / len(length)
-
-    width = re.findall(r'(?:макс\.?\s*ширина|ширина|ширина в самой широкой точке).*?[\s\.:]+([\d\.,]+)\s*(?:см|мм|m)',
-                       value, flags=re.IGNORECASE)
-    if width:
-        width = [float(w.replace(',', '.')) for w in width[0].split('-')]
-        if 'мм' in value:
-            sizes['ширина'] = sum(width) / len(width) / 10
-        elif 'м' in value:
-            sizes['ширина'] = sum(width) / len(width) * 100
-        else:
-            sizes['ширина'] = sum(width) / len(width)
-
-    height = re.findall(r'высота.*?[\s\.:]+([\d\.,]+)\s*(?:см|мм|м)', value, flags=re.IGNORECASE)
-    if height:
-        height = [float(h.replace(',', '.')) for h in height[0].split('-')]
-        if 'мм' in value:
-            sizes['высота'] = sum(height) / len(height) / 10
-        elif 'м' in value:
-            sizes['высота'] = sum(height) / len(height) * 100
-        else:
-            sizes['высота'] = sum(height) / len(height)
-
-    diameter = re.findall(r'(?:макс\.?\s*диаметр|диаметр).*?[\s\.:]+([\d\.,]+)\s*(?:см|мм|m)', value,
-                          flags=re.IGNORECASE)
-    if diameter:
-        diameter = [float(d.replace(',', '.')) for d in diameter[0].split('-')]
-        if 'мм' in value:
-            sizes['диаметр'] = sum(diameter) / len(diameter) / 10
-        elif 'м' in value:
-            sizes['диаметр'] = sum(diameter) / len(diameter) * 100
-        else:
-            sizes['диаметр'] = sum(diameter) / len(diameter)
-
-    # объем
-    volume = re.findall(r"\b(\d+(?:\.\d+)?)\s*(мл|л)\b|\bобъем[\s.:]+(\d+(?:\.\d+)?)\s*(мл|л)\b", value,
-                        flags=re.IGNORECASE)
-    if volume:
-        try:
-            v, unit = volume[0]
-            if unit == 'л':
-                sizes['объем'] = float(v.replace(',', '.')) * 1000
-            else:
-                sizes['объем'] = float(v.replace(',', '.'))
-        except ValueError:
-            sizes['объем'] = volume[0]
-
-    # размер одежды
-    size = re.findall(r'\b\d{2}-\d{2}\b|\b\w+\b\s+\d{2,3}[-/]\d{2,3}\b', value)
-    if size:
-        sizes['размер'] = size[0].replace('размер', '')
-
-    # размеры если они записаны неочевидно
-    size = re.findall(r'(\d+)\s*[x*]\s*(\d+)\s*[x*]\s*(\d+)\s*(cm|см)', value)
-    if size:
-        sizes['длина'] = int(size.group(1))
-        sizes['высота'] = int(size.group(2))
-        sizes['ширина'] = int(size.group(3))
-
-    # вес
-    weight = None
-    # weight = re.findall(r'вес\s+(\S+)\s+(\d+(?:\.\d+)?)(?:\s*(г|гр|грамм|килограмм|кг|кило))?', value)
-    if weight:
-        weight_value = [lambda _: float(_) for _ in weight if isinstance(_, float)]
-        # weight_units = weight.group(4)
-        # weight_value = float(weight.group(3))
-
-    # глубина
-    depth = re.findall(r'глубина.*?[\s\.:]+([\d\.,]+).*?\s*(?:см|мм|inch)', value, flags=re.IGNORECASE)
-    if depth:
-        depth = [float(d.replace(',', '.')) for d in depth[0].split('-')]
-        if 'мм' in value:
-            sizes['глубина'] = sum(depth) / len(depth) / 10
-        else:
-            sizes['глубина'] = sum(depth) / len(depth)
-
-    # максимальный и минимальный диаметры
-    max_diameter = re.findall(r'макс(?:\.|имальный) диаметр.*?[\s\.:]+([\d\.,]+)\s*(?:см|мм|inch)', value,
-                              flags=re.IGNORECASE)
-    if max_diameter:
-        sizes['максимальный диаметр'] = float(max_diameter[0].replace(',', '.'))
-
-    min_diameter = re.findall(r'мин(?:\.|имальный) диаметр.*?[\s\.:]+([\d\.,]+)\s*(?:см|мм|inch)', value,
-                              flags=re.IGNORECASE)
-    if min_diameter:
-        sizes['минимальный диаметр'] = float(min_diameter[0].replace(',', '.'))
-
-    # максимальная и минимальная ширины
-    max_width = re.findall(r'макс(?:\.|имальная) ширина.*?[\s\.:]+([\d\.,]+)\s*(?:см|мм|inch)', value,
-                           flags=re.IGNORECASE)
-    if max_width:
-        sizes['максимальная ширина'] = float(max_width[0].replace(',', '.'))
-
-    min_width = re.findall(r'мин(?:\.|имальная) ширина.*?[\s\.:]+([\d\.,]+)\s*(?:см|мм|inch)', value,
-                           flags=re.IGNORECASE)
-    if min_width:
-        sizes['минимальная ширина'] = float(min_width[0].replace(',', '.'))
-
-    # максимальная и минимальная высоты
-    max_height = re.findall(r'макс(?:\.|имальная) высота.*?[\s\.:]+([\d\.,]+)\s*(?:см|мм|inch)', value,
-                            flags=re.IGNORECASE)
-    if max_height:
-        sizes['максимальная высота'] = float(max_height[0].replace(',', '.'))
-
-    min_height = re.findall(r'мин(?:\.|имальная) высота.*?[\s\.:]+([\d\.,]+)\s*(?:см|мм|inch)', value,
-                            flags=re.IGNORECASE)
-    if min_height:
-        sizes['минимальная высота'] = float(min_height[0].replace(',', '.'))
-
-    return sizes
-
-
-class Product():
-    def __init__(self):
-        pass
 
 class SexOptovik_ozon(main.Functions):
     ACCURANCY = 2  # больше - дольше
@@ -179,7 +50,9 @@ class SexOptovik_ozon(main.Functions):
             return 0
         except OSError:
             raise src.ExceptionService.Exceptions.CustomError(
-                '[!] Ошибка при получении API ключа. Проверьте Credentials')
+                message='[!] Ошибка при получении API ключа. Проверьте Credentials',
+                error_type=OSError
+            )
 
     def checkFolders(self):
         pass
@@ -187,7 +60,7 @@ class SexOptovik_ozon(main.Functions):
     def downloadProducts(self):
         main.Functions.download_universal([self.config.urlItems,
                                            self.config.urlStocks],
-                                          path_def='./SexOptovik')
+                                          path_def='../../SexOptovik')
 
     def importCats(self) -> dict:
         return self.unpack_json(
@@ -254,26 +127,6 @@ class SexOptovik_ozon(main.Functions):
                                    )
 
         return big_categories_with_ids
-
-    def getCatViaChatGPT(self, what, where, additionalPrompt):
-        success = False
-        while not success:
-            try:
-                response = openai.ChatCompletion.create(
-                    model='gpt-3.5-turbo-0613',
-                    messages=[{'role': 'user',
-                               'content': what + additionalPrompt + 'Список категорий откуда тебе надо выбрать 1 совпадение и отправить мне: ' + ', '.join(
-                                   where)}],
-                    temperature=0
-                )
-                success = True
-                return response['choices'][0]['message']['content']
-            except openai.error.ServiceUnavailableError as e:
-                print('Ошибка сервера. Жду 15 сек')
-                time.sleep(15)
-            except openai.error.APIError:
-                print('Ошибка сервера. Жду 15 сек')
-                time.sleep(15)
 
     def find_other_categories(self, dict, json, filtered):
         def checkSubCategories(dict, catId, filtered) -> bool:
@@ -344,7 +197,6 @@ class SexOptovik_ozon(main.Functions):
             list(filter(lambda x: x.lower() in category_information.lower(), ['белье'
                                                                               ])))
 
-
         condoms = 'презерватив' in category_information.lower()
 
         if souvenirs_keywords:
@@ -368,7 +220,7 @@ class SexOptovik_ozon(main.Functions):
                                   ContentType="application/json")
 
     @staticmethod
-    def process_products_api_with_decorator(func):
+    def process_products_import_list_api_with_decorator(func):
         def wrapper(self, *args, **kwargs):
             results = []
             last_id = ""
@@ -391,7 +243,7 @@ class SexOptovik_ozon(main.Functions):
 
         return wrapper
 
-    @process_products_api_with_decorator
+    @process_products_import_list_api_with_decorator
     def proccessProductArticulars(self, item):
         articular = self.cleanArticul(item['offer_id'], seller_code=str(self.config.id),
                                       marketplace=self.config.marketplace)
@@ -400,41 +252,309 @@ class SexOptovik_ozon(main.Functions):
         else:
             return 'error', articular[1]
 
-    @process_products_api_with_decorator
-    def proccessProductsBarcodes(self, item):
+    @process_products_import_list_api_with_decorator
+    def getAllArticular(self, item):
         return item['offer_id']
 
+    @staticmethod
+    def filter_creator(filter_dict=None, **kwargs):
+        if filter_dict is None:
+            filter_params = {}
+        else:
+            filter_params = dict(filter_dict)
+
+        if kwargs:
+            for param, value in kwargs.items():
+                filter_params[param] = value
+        return filter_params
+
+    def body_creator(self, filter, **kwargs):
+        if filter is not None:
+            request_body = {'filter': filter}
+        else:
+            request_body = {}
+        request_body.update(kwargs)
+        return self.API.createRequest(**request_body)
+
+    def batch_divider(self, products, batch_size):
+        return [products[i:i + batch_size] for i in range(0, len(products), batch_size)]
+
+    @staticmethod
+    @jit(nopython=True)
+    def isInList(target, items):
+        for i in range(len(items)):
+            if target == items[i]:
+                return i
+        return -1
+
+    @staticmethod
+    def clean_barcodes(barcode):
+        if re.search(r'#', barcode):
+            match = re.search(r'#', barcode)
+            if match:
+                return barcode[:match.end() - 1]
+        return barcode
+
+    @staticmethod
+    def product_info_attributes_decorator(filter_creator, body_creator, url_key, batch_divider):
+        def actual_decorator(func):
+            def wrapper(self, *args, **kwargs):
+                results = defaultdict(list)
+                filter_param = kwargs.get("filter", {})
+                body_param = kwargs.get("body", {})
+                if kwargs.get('batch') is None:
+                    all_prods = kwargs.get("all_prods_ozon", [])
+                    batch_size = kwargs.get('batch_size',
+                                            1000)
+                    divided_results = batch_divider(self, all_prods, batch_size)
+                else:
+                    divided_results = kwargs.get('batch')
+
+                for i in range(len(divided_results)):
+                    response_prod_attributes = self.API.sendResponse(
+                        url=f'{self.API.urlOzon}{self.API.OzonRequestURL[url_key]}',
+                        body=body_creator(self,
+                                          filter=filter_creator(filter_param),
+                                          **body_param
+                                          )
+                    ).json()
+
+                    for item in response_prod_attributes['result']:
+                        result_type, created_product = func(self, item, *args, **kwargs)
+                        results[result_type].append(created_product)
+                return results
+
+            return wrapper
+
+        return actual_decorator
+
+    def get_prods_extra_info(self, divided_articulars, keys) -> dict:
+        """
+                Получение требуемой информации по товарам
+
+        :param divided_articulars -> артикулы, разделенные по блокам
+        :param keys -> список ключей, которые необходимо получить из метода. подробнее читать
+        в документации метода get-product-info
+
+        :return -> словарь типа ключ-значение по товару с OZON
+        """
+        articular_info = {}
+
+        for divided_results in divided_articulars:
+            response_prod_info = self.API.sendResponse(
+                url=f'{self.API.urlOzon}{self.API.OzonRequestURL["get-products-info"]}',
+                body=self.API.createRequest(offer_id=divided_results)
+            ).json()
+
+            items = response_prod_info.get('result', {}).get('items', [])
+            for item in items:
+                articular = item.get('offer_id', '')
+                if articular:
+                    articular_info[articular] = {}
+                    for key in keys:
+                        articular_info[articular][key] = str(
+                            item.get(key,
+                                     "[!] Error, check values"))  # значение по умолчанию может быть другим, если вы хотите
+        return articular_info
+
+    @product_info_attributes_decorator(filter_creator=filter_creator,
+                                       body_creator=body_creator,
+                                       url_key="product-info-attributes",
+                                       batch_divider=batch_divider)
+    def process_product(self,
+                        product,
+                        all_prods_optovik,
+                        extra_information,
+                        body,
+                        filter,
+                        batch=None,
+                        batch_size=1000
+                        ):
+        cleanedArticular = self.cleanArticul(articular=product['offer_id'],
+                                             seller_code=str(self.config.id),
+                                             marketplace='oz',
+                                             shortArticular=True
+                                             )
+        if cleanedArticular[0]:
+            articularIndex = self.isInList(int(cleanedArticular[1]), all_prods_optovik) if 'Z1' not in cleanedArticular[
+                1] else -1
+        else:
+            articularIndex = -1
+        if 'id' in product['offer_id'] and articularIndex == -1:
+            return "archive", product['id']
+        updateState = False
+        _updatedProduct = Product.Product.create_product(attribute_dict=product)
+        if cleanedArticular[0] and (articularIndex != -1) and not pd.isna(self.ProductOptovik[1][articularIndex]) and (
+                self.ProductOptovik[1][articularIndex] not in
+                extra_information[
+                    product['offer_id']][
+                    'barcodes']):
+            _updatedProduct.changeBarcode(self.clean_barcodes(self.ProductOptovik[1][articularIndex]) if not pd.isna(
+                self.ProductOptovik[1][articularIndex]) else ProductParser.OzonDefaultBarcode)
+            updateState = True
+        elif len(extra_information[product['offer_id']][
+                     'barcodes']) == 0 or 'OZNXXXXXXXXXX' in \
+                extra_information[product['offer_id']]['barcodes']:
+            newBarcode = ProductParser.OzonDefaultBarcode + \
+                         extra_information[product['offer_id']]['sku']
+            _updatedProduct.changeBarcode(newBarcode)
+            updateState = True
+        _updatedProduct.changeParam('price',
+                                    extra_information[product['offer_id']]['price'])
+        if updateState:
+            return "update", _updatedProduct.attributes
+        else:
+            return "error", _updatedProduct.attributes
+
+    def get_all_extra_info(self, divided_articulars, keys):
+        articular_info = {}
+        for divided_results in divided_articulars:
+            response_prod_info = self.API.sendResponse(
+                url=f'{self.API.urlOzon}{self.API.OzonRequestURL["get-products-info"]}',
+                body=self.API.createRequest(offer_id=divided_results)
+            ).json()
+
+            items = response_prod_info.get('result', {}).get('items', [])
+            for item in items:
+                articular = item.get('offer_id', '')
+                if articular:
+                    articular_info[articular] = {}
+                    for key in keys:
+                        articular_info[articular][key] = str(
+                            item.get(key, f"[!] Error: Check params, {key} is not found"))
+        return articular_info
+
+    def newCheckBarcodes(self, batch_size=1000):
+        all_prods_ozon = self.getAllArticular()
+        all_prods_optovik = np.array(self.ProductOptovik[0])
+        divided_articulars = [all_prods_ozon[i:i + batch_size] for i in range(0, len(all_prods_ozon), batch_size)]
+        keys = ['barcodes', 'price', 'fbo_sku']
+        needProdsInformation = self.get_all_extra_info(divided_articulars, keys)
+
+        results = defaultdict(list)
+        for batch in divided_articulars:
+            result = self.process_product(
+                batch=batch,
+                all_prods_optovik=all_prods_optovik,
+                extra_information=needProdsInformation,
+                body={"limit": 1000},
+                filter={"offer_id": batch,
+                        "visibility": "ALL"}
+            )
+            results.update(result)
+
     def checkBarcodes(self):
-        results = self.proccessProductsBarcodes()
+        @jit(nopython=True)
+        def isInList(target, items):
+            for i in range(len(items)):
+                if target == items[i]:
+                    return i
+            return -1
+
+        def clean_barcodes(barcode):
+            if re.search(r'#', barcode):
+                match = re.search(r'#', barcode)
+                if match:
+                    return barcode[:match.end() - 1]
+            return barcode
+
+        all_prods = self.getAllArticular()
+        needProdsInformation = self.get_all_extra_info(all_prods, keys=['barcodes', 'price', 'fbo_sku'])
+
+        archive_list = []
+        upload_list = []
+
+        ozon_import_limit = 100
 
         batch_size = 1000
-        divided_results = [results[i:i + batch_size] for i in range(0, len(results), batch_size)]
-
+        divided_results = [all_prods[i:i + batch_size] for i in range(0, len(all_prods), batch_size)]
         c = 0
-
+        prods = np.array(self.ProductOptovik[0])
         for i in range(len(divided_results)):
-            response = self.API.sendResponse(
-                url=f'{self.API.urlOzon}{self.API.OzonRequestURL["get-products-info"]}',
+            response_prod_attributes = self.API.sendResponse(
+                url=f'{self.API.urlOzon}{self.API.OzonRequestURL["product-info-attributes"]}',
                 body=self.API.createRequest(
-                    offer_id=divided_results[i]
+                    filter=self.API.createFilter(
+                        offer_id=divided_results[i],
+                        visibility="ALL"
+                    ),
+                    limit=1000
                 )
             ).json()
-            for product in response['result']['items']:
-                if not product['barcode'] or len(product['barcodes']) == 0:
-                    cleanedArticular = self.cleanArticul(articular=product['offer_id'],
-                                                         seller_code=str(self.config.id),
-                                                         marketplace='oz',
-                                                         shortArticular=True
-                                                         )
-                    # проверка оптовика
-                    if cleanedArticular[0] and cleanedArticular[1] in self.ProductOptovik[0]:
-                        self.updateAttribute(attributes={
 
-                        })
+            for k in range(len(response_prod_attributes['result'])):
+                c += 1
+                cleanedArticular = self.cleanArticul(articular=response_prod_attributes['result'][k]['offer_id'],
+                                                     seller_code=str(self.config.id),
+                                                     marketplace='oz',
+                                                     shortArticular=True
+                                                     )
+                if cleanedArticular[0]:
+                    articularIndex = isInList(int(cleanedArticular[1]), prods) if 'Z1' not in cleanedArticular[
+                        1] else -1
+                else:
+                    articularIndex = -1
+                if 'id' in response_prod_attributes['result'][k]['offer_id'] and articularIndex == -1 or 'Z' in \
+                        response_prod_attributes['result'][k]['offer_id']:
+                    archive_list.append(response_prod_attributes['result'][k]['id'])
+                updateState = False
+                newBarcode = ""
+                _updatedProduct = Product.Product.create_product(attribute_dict=response_prod_attributes['result'][k])
+                if cleanedArticular[0] and (articularIndex != -1) and (self.ProductOptovik[1][articularIndex] not in
+                                                                       needProdsInformation[
+                                                                           response_prod_attributes['result'][k][
+                                                                               'offer_id']]['barcodes']):
+                    _updatedProduct.changeBarcode(clean_barcodes(self.ProductOptovik[1][articularIndex]) if not pd.isna(
+                        self.ProductOptovik[1][articularIndex]) else ProductParser.OzonDefaultBarcode)
+                    updateState = True
+                elif len(needProdsInformation[response_prod_attributes['result'][k]['offer_id']][
+                             'barcodes']) == 0 or 'OZNXXXXXXXXXX' in \
+                        needProdsInformation[response_prod_attributes['result'][k]['offer_id']]['barcodes']:
+                    newBarcode = ProductParser.OzonDefaultBarcode + \
+                                 needProdsInformation[response_prod_attributes['result'][k]['offer_id']]['sku']
+                    _updatedProduct.changeBarcode(newBarcode)
+                    updateState = True
+                _updatedProduct.changeParam('price',
+                                            needProdsInformation[response_prod_attributes['result'][k]['offer_id']][
+                                                'price'])
+                if updateState:
+                    upload_list.append(_updatedProduct.attributes)
+
+                """
+                ПЕРЕД ЗАПУСКОМ ПРОВЕРИТЬ КОД!
+                """
+                if len(archive_list) % 100 == 0 or (
+                        len(archive_list) != 0 and i == len(divided_results) and k + 1 == len(
+                        response_prod_attributes['result'])):
+                    print("Статус архивирования:", self.API.sendResponse(
+                        url=self.API.urlOzon + self.API.OzonRequestURL['archive-items'],
+                        body=self.API.createRequest(
+                            product_id=archive_list
+                        )).json()['result'])
+                    archive_list = []
+                    continue
+                if len(upload_list) % ozon_import_limit == 0 or (
+                        len(upload_list) != 0 and i + 1 == len(divided_results) and k + 1 == len(
+                        response_prod_attributes['result'])):
+                    task_id_list = self.API.sendResponse(
+                        url=self.API.urlOzon + self.API.OzonRequestURL['product-import'],
+                        body=self.API.createRequest(
+                            items=upload_list
+                        )
+                    ).json()['result']
+                    checkStatus = self.API.sendResponse(
+                        url=self.API.urlOzon + self.API.OzonRequestURL['product-import-check'],
+                        body=self.API.createRequest(
+                            task_id=task_id_list['task_id']
+                        )
+                    ).json()['result']
+                    upload_list = []
+
+                self.itemRemains(c, len(all_prods), text='Выгрузка баркодов')
 
     def importArticularOptovik(self):
-        df = pd.read_csv('./SexOptovik/all_prod_info.csv', sep=';', encoding='cp1251')
-        self.ProductOptovik = tuple[list(df.iloc[:, 0]), list(df.iloc[:, 14])]
+        df = pd.read_csv('SexOptovik/all_prod_info.csv', sep=';', encoding='cp1251')
+        self.ProductOptovik = [list(df.iloc[:, 0]), list(df.iloc[:, 14])]
 
     def importProductListAPI(self) -> tuple[set[Any], set[Any], set[Any]]:
         good, error, lie = set(), set(), set()
@@ -449,27 +569,41 @@ class SexOptovik_ozon(main.Functions):
 
         return good, error, lie
 
+    @staticmethod
+    def itemRemains(i, total_items_count, text):
+        ratio = 100.0 / total_items_count
+        percentage = round(i * ratio, 3)
+        sys.stdout.write(f'\r{text}. Выполнено: {percentage}%')
+        sys.stdout.flush()
 
-    def checkNewProduct(self, catsOzon, exist_products):
+    def checkNewProduct(self, catsOzon, exist_products, df=None):
         def calculateNewItems(df, exist_articuls) -> int:
             totally = 0
-            productInfo = df.iloc[:, 3]
-            productInfo.dropna(inplace=True)
+            productInfo = df.iloc[:, 0]
             for i in range(len(productInfo)):
-                if (df.iloc[i, 0] not in exist_articuls):
-                    totally+=1
-            print(f'Всего найдено новых товаров: {totally}')
+                if df.iloc[i, 0] not in exist_articuls:
+                    totally += 1
+            print(f'\nВсего найдено новых товаров: {totally}')
             return totally
 
+        if df is None:
+            df = pd.read_csv('SexOptovik/all_prod_info.csv', sep=';', encoding='cp1251')
+
         """
-        можно поменять на список, полученный через API
+        [!] на этом этапе могут возникнуть ошибки ненахождения товаров [!]
+        
+            проверить данные dropna в случае ошибки. использовать другой опорный столбец
+        -----------------------------------------------------------------------------------
         """
-        df = pd.read_csv('./SexOptovik/all_prod_info.csv', sep=';', encoding='cp1251')
+
         productInfo = df.iloc[:, 3]
         productInfo.dropna(inplace=True)
 
-        newItems = calculateNewItems(df=df,
-                                    exist_articuls=exist_products)
+        "----------------------------------------------------------------------------------"
+
+        new_items_count = calculateNewItems(df=df,
+                                            exist_articuls=exist_products)
+
         def unpack_json_category_types(category_ids) -> list:
             total_types_list = []
             all_attributes = {}
@@ -498,10 +632,7 @@ class SexOptovik_ozon(main.Functions):
                             total_types_list.append(getTypesList['result'][i]['value'])
             return [total_types_list, all_attributes]
 
-
-
-
-        def extractListCats(catsOzon, inited_categories,original_categories):
+        def extractListCats(catsOzon, inited_categories, original_categories):
             for k, v in catsOzon.items():
                 for category in v:
                     inited_categories[category[0]] = []
@@ -513,16 +644,23 @@ class SexOptovik_ozon(main.Functions):
             for i in range(0, len(lst), n):
                 yield lst[i:i + n]
 
-        def getCategoryTypes(catsOzon, type=dict()):
+        def getCategoryTypes(catsOzon, type=None):
             """
-            :param: catsOzon -> dict
-            :param: type -> какого типа нужно получить результат
+
+                    Дополнительный функционал для получнеия типов по категориям из списка озона
+
+                    создавалось для лучшей работы определителя категорий, но результат себя не оправдал
+
+            :param catsOzon -> dict
+            :param type -> какого типа нужно получить результат
             example:
                 "Секс-игрушки": [(Вибратор, 12345), ...]
             """
+            if type is None:
+                type = dict()
             all_types = {}
             all_attributes = {}
-            for k,v in catsOzon.items():
+            for k, v in catsOzon.items():
                 # Делаем разбивку категорий на пакеты по 20
                 categories_chunks = list(chunks(v, 20))
                 for chunk in categories_chunks:
@@ -531,7 +669,7 @@ class SexOptovik_ozon(main.Functions):
                     all_types[k] = res[0]
                     all_attributes[k] = res[1]
 
-            if isinstance(type,dict):
+            if isinstance(type, dict):
                 return all_types, all_attributes
 
         def category_initializer() -> dict:
@@ -542,31 +680,19 @@ class SexOptovik_ozon(main.Functions):
                             inited_categories=inited_categories,
                             original_categories=original_categories
                             )
-            types_dict, all_attributes = getCategoryTypes(catsOzon=catsOzon)
 
-            def getCategoryName(category_id):
-                for k, v in catsOzon.items():
-                    for category in v:
-                        if category[1] == category_id: return category[0]
-
-            names = {}
-            required = set()
-
-            for k, v in all_attributes.items():
-                for category in v:
-                    cat_name = getCategoryName(category)
-                    names[cat_name] = [('id', category)]
-                    for attribute in v[category]:
-                        names[cat_name].append(attribute['name'])
-                        if attribute['is_required']:
-                            required.add(attribute['name'])
             def add_item_by_category_name(my_dict, category_name, item):
                 for key, array in my_dict.items():
-                    if key[0] == category_name:
+                    if key == category_name:
                         array.append(item)
                         return
-            def itemRemains(i):
-                print(f'Выполнено: {round(float(i/newItems)*100, 3)}%')
+
+            # Функция для добавления элемента по айди категории
+            def add_item_by_category_id(my_dict, category_id, item):
+                for key, array in my_dict.items():
+                    if key[1] == category_id:
+                        array.append(item)
+                        return
 
             def get_category_selection(product_type_lower, types_dict):
                 product_type_mapping = {
@@ -576,49 +702,68 @@ class SexOptovik_ozon(main.Functions):
 
                 return product_type_mapping.get(product_type_lower, original_categories)
 
-            # Функция для добавления элемента по айди категории
-            def add_item_by_category_id(my_dict, category_id, item):
-                for key, array in my_dict.items():
-                    if key[1] == category_id:
-                        array.append(item)
-                        return
-
             res = self.loadFromSpread(spreadID='1zlsbQWPkikBlRiznlkv6asIdRdaGBBHbmQu8M_6mfOU',
-                                      column=['Name', 'Description', 'Type'],
+                                      column=['Name', 'Description', 'Type', 'ID'],
                                       range_header='Полная база!A1:Z')
 
             morph = pymorphy2.MorphAnalyzer()
             knn = NearestNeighbors(n_neighbors=3, metric='cosine')
-            vectorizer = TfidfVectorizer(max_features=1000, ngram_range=(1, 2))
+            vectorized = TfidfVectorizer(max_features=1000, ngram_range=(1, 2))
             for i in range(len(res[0])):
-
-
-                """                ТУТ ВОЗНИКАЮТ ПРОБЛЕМЫ
-                
-                words_combination_only_cyrillic = set(filter(
-                    lambda x: is_cyrillic(x),
-                    (res[2][i]+res[1][i]).split())
-                )
-                inner_string = ' '.join(words_combination_only_cyrillic)
-                
-                """
                 product_type_lower = res[2][i].lower()
                 category_selection = get_category_selection(product_type_lower, catsOzon)
 
                 results = self.initialize_category(original_categories=category_selection,
-                                                   description=res[1][i]+res[0][i],
+                                                   description=res[1][i] + res[0][i],
                                                    morph=morph,
                                                    knn=knn,
-                                                   vectorizer=vectorizer)
-                add_item_by_category_name(inited_categories, results[0], res[0][i])
-                done+=1
-                #print(results[0], "|--|", res[0][i])
-                #itemRemains(done)
-
+                                                   vectorizer=vectorized)
+                add_item_by_category_name(inited_categories, results[0], res[3][i])
+                done += 1
+                self.itemRemains(done, new_items_count, text='Обработка категорий новых товаров')
+                # itemRemains(done)
 
             return inited_categories
 
         return category_initializer()
+
+    def parse_products(self, category_ids, categories_ozon, df):
+        all_ids_with_category = [(cat_id, int(item_id)) for cat_id, ids in category_ids.items() for item_id in ids]
+        all_ids_only = [item_id for _, item_id in all_ids_with_category]
+        filtered_items = df[df.iloc[:, 0].isin(all_ids_only)]
+
+        morph = pymorphy2.MorphAnalyzer()
+        knn = NearestNeighbors(n_neighbors=3, metric='cosine')
+        vectorized = TfidfVectorizer(max_features=1000, ngram_range=(1, 2))
+
+        for i in range(len(filtered_items)):
+            category_name = -1
+            for item in all_ids_with_category:
+                if item[1] == filtered_items.iloc[i][0]:
+                    category_name = item[0]
+                    break
+            category_id = -1
+            for k, v in categories_ozon.items():
+                for category in v:
+                    if category[0] == category_name:
+                        category_id = category[1]
+                        break
+            category_attributes_required = self.API.sendResponse(
+                url=self.API.urlOzon + self.API.OzonRequestURL['category-attributes'],
+                body=self.API.createRequest(
+                    attribute_type="REQUIRED",
+                    category_id=[category_id],
+                    language="DEFAULT"
+                )
+            ).json()['result']
+
+
+
+            product_instance = ProductParser(filtered_items.iloc[i])
+
+    def parse_instances(self, stack):
+        for i in range(len(stack)):
+            stack[i].parse()
 
     def outToExcel(self, out, path):
         # Проверяем тип данных out
@@ -632,7 +777,7 @@ class SexOptovik_ozon(main.Functions):
                     out[key] = arr + [float('nan')] * (max_len - len(arr))
 
             # Преобразуем словарь в DataFrame
-            df = pd.DataFrame(out)
+            df = pd.DataFrame(out, index=None)
         elif isinstance(out, (list, tuple)):
             # Преобразуем массив в DataFrame
             df = pd.DataFrame(out)
@@ -646,13 +791,14 @@ class SexOptovik_ozon(main.Functions):
 
         @lru_cache(maxsize=10000)
         def lemmatize(text):
-         words = text.split()
-         res = list()
-         for word in words:
-             p = morph.parse(word)[0]
-             res.append(p.normal_form)
+            words = text.split()
+            res = list()
+            for word in words:
+                p = morph.parse(word)[0]
+                res.append(p.normal_form)
 
-         return ' '.join(res)
+            return ' '.join(res)
+
         categories = [lemmatize(cat.lower().replace(">", "").replace("#", "")) for cat in original_categories]
 
         vectors = vectorizer.fit_transform(categories)
@@ -660,10 +806,10 @@ class SexOptovik_ozon(main.Functions):
         knn.fit(vectors)
 
         def get_nearest_categories(desc):
-             desc = lemmatize(desc.lower().replace(">", "").replace("#", ""))
-             vec = vectorizer.transform([desc])
-             distances, indices = knn.kneighbors(vec)
-             return [original_categories[i] for i in indices[0]]
+            desc = lemmatize(desc.lower().replace(">", "").replace("#", ""))
+            vec = vectorizer.transform([desc])
+            distances, indices = knn.kneighbors(vec)
+            return [original_categories[i] for i in indices[0]]
 
         return get_nearest_categories(description)
 
@@ -674,6 +820,9 @@ class SexOptovik_ozon(main.Functions):
         values = result.get('values', [])
 
         # Преобразование в DataFrame
+        # if 'A1' in range_header and False:
+        #     df = pd.DataFrame(values)
+        # else:
         df = pd.DataFrame(values[1:], columns=values[0])
         df = df.dropna()
 
@@ -685,7 +834,10 @@ class SexOptovik_ozon(main.Functions):
         elif isinstance(column, list):
             column_values = []
             for col in column:
-                column_values.append(df[col].tolist())
+                if isinstance(col, int):
+                    column_values.append(df[col].tolist())
+                elif isinstance(col, str):
+                    column_values.append(df[col].tolist())
             return column_values
         else:
             return []
@@ -787,6 +939,7 @@ class SexOptovik_ozon(main.Functions):
         print('Data added successfully.')
 
     def start(self):
+        print(f'\nПриветствую Вас, {self.config.shopName}\n')
         try:
             self.importCredentials()
             # self.downloadProducts()
@@ -796,14 +949,50 @@ class SexOptovik_ozon(main.Functions):
         self.createAPI()
         self.importArticularOptovik()
         existProducts = self.getExistArticuls()
+        #self.newCheckBarcodes(batch_size=1000)
         # self.checkBarcodes()
+        category_list_ozon = self.importCats()
+        df = self.load_database_product(columns=[x for x in range(17)],
+                                        loading_type='manual')
 
-        items = self.checkNewProduct(self.importCats(),
-                                     exist_products=existProducts)
-        self.outToExcel(out=items,
-                        path='./output.xlsx')
 
-        print(items)
+        items_by_category = self.get_categories('spread', exist_prods=existProducts)
+
+
+        self.parse_products(items_by_category,
+                            category_list_ozon,
+                            df=df)
+
+
+    def get_categories(self, _type, exist_prods, category_list_ozon=None):
+        if _type == 'manual':
+            return self.get_cats_manual(category_list_ozon=category_list_ozon,
+                                        exist_prods=exist_prods)
+        elif _type == 'spread':
+            return self.get_cats_from_spread(exist_prods=exist_prods)
+    def get_cats_from_spread(self, exist_prods) -> dict:
+        categories = self.loadFromSpread(spreadID='1seOHrVIUluOxK3yXz3lQSHtZ84FyrGr-i0kQMAZ8BIE',
+                                         range_header='cats!A1:Z',
+                                         column=['ID', 'CATEGORY']
+                                         )
+
+        items_by_category = defaultdict(list)
+        for i in range(len(categories[1])):
+            if categories[0][i] not in exist_prods:
+                items_by_category[categories[1][i]].append(categories[0][i])
+        return items_by_category
+    def get_cats_manual(self, category_list_ozon, exist_prods):
+        return self.checkNewProduct(category_list_ozon,
+                             exist_products=exist_prods)
+    def load_database_product(self, columns, loading_type='manual'):
+        if loading_type == 'manual':
+            df = pd.read_csv('SexOptovik/all_prod_info.csv', sep=';', encoding='cp1251')
+            return df
+        elif loading_type == 'api':
+            return pd.DataFrame(self.loadFromSpread(spreadID='1nImAUNxnY_rw1jkut-HihxB0rUFPDipJFgeCfwXTCSg',
+                                                    column=columns,
+                                                    range_header='all-prod-info!A1:Z')
+                                )
 
     def getExistArticuls(self) -> set:
         goods, errors, lieBrands = self.importProductListAPI()
@@ -834,11 +1023,11 @@ class SexOptovik_ozon(main.Functions):
             }
         """
         if not isinstance(attributes, dict):
-            raise src.ExceptionService.Exceptions.CustomError("Wrong attribute type:\
-            \nGot:{0}\nExpected{1}".format(type(attributes), type(dict)))
+            raise src.ExceptionService.Exceptions.CustomError(message=
+            "Wrong attribute type:\nGot:{0}\nExpected{1}".format(type(attributes), type(dict)),
+                                                              error_type=TypeError)
         else:
             pass
-
 
     @staticmethod
     def measure_time(f):

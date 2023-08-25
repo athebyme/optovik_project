@@ -4,7 +4,6 @@ import src.ExceptionService.Exceptions as e
 
 import requests
 
-import main
 import pandas as pd
 class DB_loader:
 
@@ -44,6 +43,7 @@ class DB_loader:
         # Ищем строку соответствующую входным 'ID' и 'Marketplace'. Если нет совпадений - выбрасываем ошибку
         matches = db.loc[(db['ID'] == id) & (db['Marketplace'] == marketplace)]
         if len(matches.values) == 0:
-            raise e.CustomError('Check ID')
+            raise e.CustomError(message='[!] Check columns IDs',
+                                error_type="There is no matching columns in spreadsheet")
         
         return matches.values.tolist()

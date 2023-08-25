@@ -1,9 +1,8 @@
 import datetime
 import pickle
 import os
-from google_auth_oauthlib.flow import InstalledAppFlow,Flow
+from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.auth.transport.requests import Request
 
 
@@ -39,7 +38,7 @@ def Create_Service(client_secret_file, api_name, api_version, *scopes):
         print('Подключено к Google')
         return service
     except Exception as e:
-        print('Unable to connect.')
+        print('Невозможно подключиться к сети.')
         print(e)
         return None
 
