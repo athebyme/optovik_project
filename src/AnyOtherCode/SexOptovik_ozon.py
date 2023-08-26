@@ -21,6 +21,7 @@ from src.API import Api as API
 from src.Product import Product
 from src.Product.Product_Parser import ProductParser
 
+
 # исправить все рег. шаблоны
 
 
@@ -525,7 +526,7 @@ class SexOptovik_ozon(main.Functions):
                 """
                 if len(archive_list) % 100 == 0 or (
                         len(archive_list) != 0 and i == len(divided_results) and k + 1 == len(
-                        response_prod_attributes['result'])):
+                    response_prod_attributes['result'])):
                     print("Статус архивирования:", self.API.sendResponse(
                         url=self.API.urlOzon + self.API.OzonRequestURL['archive-items'],
                         body=self.API.createRequest(
@@ -535,7 +536,7 @@ class SexOptovik_ozon(main.Functions):
                     continue
                 if len(upload_list) % ozon_import_limit == 0 or (
                         len(upload_list) != 0 and i + 1 == len(divided_results) and k + 1 == len(
-                        response_prod_attributes['result'])):
+                    response_prod_attributes['result'])):
                     task_id_list = self.API.sendResponse(
                         url=self.API.urlOzon + self.API.OzonRequestURL['product-import'],
                         body=self.API.createRequest(
@@ -607,13 +608,29 @@ class SexOptovik_ozon(main.Functions):
         def unpack_json_category_types(category_ids) -> list:
             total_types_list = []
             all_attributes = {}
+
+            # ==============================================================
+            required = []
+            # ======^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^==================
+
             if isinstance(category_ids, (str, int)):
                 category_ids = [category_ids]
-            json_response = self.API.sendResponse(
+            json_response_all = self.API.sendResponse(
                 url=self.API.urlOzon + self.API.OzonRequestURL["category-attributes"],
                 body=self.API.createRequest(category_id=category_ids, attribute_type="ALL", language="DEFAULT")
             ).json()
-            for attributes in json_response['result']:
+
+            # ============================================================
+            json_response_required = self.API.sendResponse(
+                url=self.API.urlOzon + self.API.OzonRequestURL["category-attributes"],
+                body=self.API.createRequest(category_id=category_ids, attribute_type="REQUIRED", language="DEFAULT")
+            ).json().get('result')
+            for item in json_response_required:
+                required.append(item)
+
+            # =========^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^=============
+
+            for attributes in json_response_all['result']:
                 category_id = attributes['category_id']
                 attribute = attributes['attributes']
                 all_attributes[category_id] = attribute
@@ -630,7 +647,7 @@ class SexOptovik_ozon(main.Functions):
                         ).json()
                         for i in range(len(getTypesList['result'])):
                             total_types_list.append(getTypesList['result'][i]['value'])
-            return [total_types_list, all_attributes]
+            return [total_types_list, all_attributes, required]
 
         def extractListCats(catsOzon, inited_categories, original_categories):
             for k, v in catsOzon.items():
@@ -660,6 +677,7 @@ class SexOptovik_ozon(main.Functions):
                 type = dict()
             all_types = {}
             all_attributes = {}
+            all_required = {}
             for k, v in catsOzon.items():
                 # Делаем разбивку категорий на пакеты по 20
                 categories_chunks = list(chunks(v, 20))
@@ -668,6 +686,7 @@ class SexOptovik_ozon(main.Functions):
                     res = unpack_json_category_types(category_ids=category_ids)
                     all_types[k] = res[0]
                     all_attributes[k] = res[1]
+                    all_required[k] = res[2]
 
             if isinstance(type, dict):
                 return all_types, all_attributes
@@ -702,6 +721,7 @@ class SexOptovik_ozon(main.Functions):
 
                 return product_type_mapping.get(product_type_lower, original_categories)
 
+            results = getCategoryTypes(catsOzon=catsOzon)
             res = self.loadFromSpread(spreadID='1zlsbQWPkikBlRiznlkv6asIdRdaGBBHbmQu8M_6mfOU',
                                       column=['Name', 'Description', 'Type', 'ID'],
                                       range_header='Полная база!A1:Z')
@@ -749,17 +769,23 @@ class SexOptovik_ozon(main.Functions):
                         category_id = category[1]
                         break
             category_attributes_required = self.API.sendResponse(
-                url=self.API.urlOzon + self.API.OzonRequestURL['category-attributes'],
+                url=self.API.urlOzon + self.API.OzonRequestURL["category-attributes"],
                 body=self.API.createRequest(
                     attribute_type="REQUIRED",
                     category_id=[category_id],
                     language="DEFAULT"
                 )
-            ).json()['result']
+            ).json()
+            category_attributes_required = category_attributes_required.get('result')[0].get('attributes')
 
-
-
-            product_instance = ProductParser(filtered_items.iloc[i])
+            product_instance = ProductParser(filtered_items.iloc[i],
+                                             API=self.API,
+                                             morph=morph,
+                                             knn=knn,
+                                             vectorized=vectorized,
+                                             required_attributes=category_attributes_required,
+                                             category_id=category_id
+                                             )
 
     def parse_instances(self, stack):
         for i in range(len(stack)):
@@ -949,20 +975,18 @@ class SexOptovik_ozon(main.Functions):
         self.createAPI()
         self.importArticularOptovik()
         existProducts = self.getExistArticuls()
-        #self.newCheckBarcodes(batch_size=1000)
+        # self.newCheckBarcodes(batch_size=1000)
         # self.checkBarcodes()
         category_list_ozon = self.importCats()
         df = self.load_database_product(columns=[x for x in range(17)],
                                         loading_type='manual')
 
-
-        items_by_category = self.get_categories('spread', exist_prods=existProducts)
-
+        items_by_category = self.get_categories('spread', exist_prods=existProducts,
+                                                category_list_ozon=category_list_ozon)
 
         self.parse_products(items_by_category,
                             category_list_ozon,
                             df=df)
-
 
     def get_categories(self, _type, exist_prods, category_list_ozon=None):
         if _type == 'manual':
@@ -970,6 +994,7 @@ class SexOptovik_ozon(main.Functions):
                                         exist_prods=exist_prods)
         elif _type == 'spread':
             return self.get_cats_from_spread(exist_prods=exist_prods)
+
     def get_cats_from_spread(self, exist_prods) -> dict:
         categories = self.loadFromSpread(spreadID='1seOHrVIUluOxK3yXz3lQSHtZ84FyrGr-i0kQMAZ8BIE',
                                          range_header='cats!A1:Z',
@@ -981,9 +1006,11 @@ class SexOptovik_ozon(main.Functions):
             if categories[0][i] not in exist_prods:
                 items_by_category[categories[1][i]].append(categories[0][i])
         return items_by_category
+
     def get_cats_manual(self, category_list_ozon, exist_prods):
         return self.checkNewProduct(category_list_ozon,
-                             exist_products=exist_prods)
+                                    exist_products=exist_prods)
+
     def load_database_product(self, columns, loading_type='manual'):
         if loading_type == 'manual':
             df = pd.read_csv('SexOptovik/all_prod_info.csv', sep=';', encoding='cp1251')
@@ -1024,7 +1051,8 @@ class SexOptovik_ozon(main.Functions):
         """
         if not isinstance(attributes, dict):
             raise src.ExceptionService.Exceptions.CustomError(message=
-            "Wrong attribute type:\nGot:{0}\nExpected{1}".format(type(attributes), type(dict)),
+                                                              "Wrong attribute type:\nGot:{0}\nExpected{1}".format(
+                                                                  type(attributes), type(dict)),
                                                               error_type=TypeError)
         else:
             pass
