@@ -43,7 +43,7 @@ class Product:
     method_of_use: str #Способ применения
     purpose: str  # Назначение товара 18+
     age_bound: str  # Возрастные ограничения
-    sizes_mm: str  # Размеры, мм
+    sizes_mm: int  # Размеры, мм
     count_packs: int  # Количество заводских упаковок
     size_eu: str  # Размер БДСМ-атрибутики
     vibration: str  # Вибрация
