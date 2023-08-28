@@ -1,13 +1,12 @@
 class Rich:
-
     def __init__(self, **kwargs):
-        ...
-        img_pc = kwargs.get('img-url-pc')
-        img_mobile = kwargs.get('img-url-mobile')
-        name = kwargs.get('name')
-        description = kwargs.get('description')
-
-        self.pattern_1 = {
+        self.img_pc = kwargs.get('img_url_pc')
+        self.img_mobile = kwargs.get('img_url_mobile')
+        self.name = kwargs.get('name')
+        self.breathe = kwargs.get('breathe')
+        
+    def create_rich(self) -> dict:
+        return str({
                       "content": [
                         {
                           "widgetName": "raShowcase",
@@ -16,16 +15,14 @@ class Rich:
                             {
                               "imgLink": "",
                               "img": {
-                                "src": img_pc,
-                                "srcMobile": img_mobile,
-                                "alt": name,
+                                "src": self.img_pc,
+                                "srcMobile": self.img_mobile,
+                                "alt": self.name,
                                 "position": "width_full",
                                 "positionMobile": "width_full"
                               },
                               "title": {
-                                "content": [
-                                  name
-                                ],
+                                "content": self.name[0],
                                 "size": "size4",
                                 "align": "center",
                                 "color": "color1"
@@ -35,7 +32,7 @@ class Rich:
                                 "align": "left",
                                 "color": "color2",
                                 "content": [
-                                  description
+                                  self.breathe[0]
                                 ]
                               }
                             }
@@ -43,4 +40,4 @@ class Rich:
                         }
                       ],
                       "version": 0.3
-                    }
+                    })

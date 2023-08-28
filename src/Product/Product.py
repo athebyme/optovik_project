@@ -1,5 +1,6 @@
 class Product:
     def __init__(self, **kwargs):
+        self.ozon_to_default = None
         self.attributes = {}    # Создаем новый словарь для каждого экземпляра
         for key, value in kwargs.items():
             self.attributes[key] = value
@@ -28,9 +29,10 @@ class Product:
                         self.attributes['category_id'] == 17031663:
                     attributes[i]['values'][0]['value'] = str(attributes[i]['values'][0]['value'])
 
-        for k,v in self.ozon_to_default.items():
-            if self.attributes.get(k) is None:
-                self.attributes[k] = v
+        if self.ozon_to_default is not None:
+            for k,v in self.ozon_to_default.items():
+                if self.attributes.get(k) is None:
+                    self.attributes[k] = v
         del self.attributes['last_id']
         #del self.attributes['id']
 

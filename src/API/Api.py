@@ -30,7 +30,6 @@ class ServiceAPI:
         "product-import-check": "/v1/product/import/info",
         "product-import-list": "/v2/product/list",
 
-
         "get-product-info": "/v2/product/info",
         "get-products-info": "/v2/product/info/list",
 
@@ -68,14 +67,17 @@ class ServiceAPI:
             return response
         except requests.exceptions.RequestException as e:
             raise src.ExceptionService.Exceptions.CustomError(message="[!] Ошибка при отправке запроса: {0}\n"
-                                                              "Подробно:{1}".format(e,json.dumps(response.json())),
+                                                                      "Подробно:{1}".format(e, json.dumps(response.json())),
                                                               error_type=requests.RequestException)
 
-    def exportCsvLog(self, response):
+    @staticmethod
+    def exportCsvLog(response):
         data_dict = pd.DataFrame.from_dict(json.loads(response)).T  # Развертываем словари во вложенных столбцах
-        data_dict.to_csv(path_or_buf='./API_LOG.csv', index=False, header=True)  # Сохраняем DataFrame в CSV файл без индекса
+        data_dict.to_csv(path_or_buf='./API_LOG.csv', index=False,
+                         header=True)  # Сохраняем DataFrame в CSV файл без индекса
 
-    def createFilter(self, **kwargs) -> dict:
+    @staticmethod
+    def createFilter(**kwargs) -> dict:
         """
     Создает словарь с фильтром на основе переданных аргументов.
 
@@ -96,6 +98,7 @@ class ServiceAPI:
     """
         filter_dict = {key: value for key, value in kwargs.items() if value is not None}
         return filter_dict
+
     def createRequest(self, **kwargs) -> dict:
         """
     Создает тело запроса (body) с параметрами.

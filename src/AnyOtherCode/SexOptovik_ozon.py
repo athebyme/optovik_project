@@ -61,7 +61,7 @@ class SexOptovik_ozon(main.Functions):
     def downloadProducts(self):
         main.Functions.download_universal([self.config.urlItems,
                                            self.config.urlStocks],
-                                          path_def='../../SexOptovik')
+                                          path_def='SexOptovik')
 
     def importCats(self) -> dict:
         return self.unpack_json(
@@ -657,7 +657,6 @@ class SexOptovik_ozon(main.Functions):
                         original_categories.append(category[0])
 
         def chunks(lst, n):
-            """Yield successive n-sized chunks from lst."""
             for i in range(0, len(lst), n):
                 yield lst[i:i + n]
 
@@ -747,11 +746,14 @@ class SexOptovik_ozon(main.Functions):
 
         return category_initializer()
 
-    def parse_products(self, category_ids, categories_ozon, df):
+    def parse_products(self, category_ids, categories_ozon, df, change=False):
         all_ids_with_category = [(cat_id, int(item_id)) for cat_id, ids in category_ids.items() for item_id in ids]
         all_ids_only = [item_id for _, item_id in all_ids_with_category]
         filtered_items = df[df.iloc[:, 0].isin(all_ids_only)]
-
+        annotations = self.get_annotation('manual')
+        annotations = annotations[annotations.iloc[:, 0].astype(int).isin(all_ids_only)]
+        # merged_df = pd.merge(filtered_items, annotations, left_on=filtered_items.columns[0],
+        #                      right_on=annotations.columns[0])
         morph = pymorphy2.MorphAnalyzer()
         knn = NearestNeighbors(n_neighbors=3, metric='cosine')
         vectorized = TfidfVectorizer(max_features=1000, ngram_range=(1, 2))
@@ -768,28 +770,38 @@ class SexOptovik_ozon(main.Functions):
                     if category[0] == category_name:
                         category_id = category[1]
                         break
-            category_attributes_required = self.API.sendResponse(
+            category_attributes_all = self.API.sendResponse(
                 url=self.API.urlOzon + self.API.OzonRequestURL["category-attributes"],
                 body=self.API.createRequest(
-                    attribute_type="REQUIRED",
+                    attribute_type="ALL",
                     category_id=[category_id],
                     language="DEFAULT"
                 )
             ).json()
-            category_attributes_required = category_attributes_required.get('result')[0].get('attributes')
+            category_attributes = category_attributes_all.get('result')[0].get('attributes')
 
             product_instance = ProductParser(filtered_items.iloc[i],
                                              API=self.API,
                                              morph=morph,
                                              knn=knn,
                                              vectorized=vectorized,
-                                             required_attributes=category_attributes_required,
-                                             category_id=category_id
-                                             )
-
-    def parse_instances(self, stack):
-        for i in range(len(stack)):
-            stack[i].parse()
+                                             category_attributes=category_attributes,
+                                             category_id=category_id,
+                                             config=self.config,
+                                             annotation=annotations.iloc[i][1]
+            )
+            task_id_list = self.API.sendResponse(
+                url=self.API.urlOzon + self.API.OzonRequestURL['product-import'],
+                body=self.API.createRequest(
+                    items=[product_instance.json]
+                )
+            ).json()['result']
+            checkStatus = self.API.sendResponse(
+                url=self.API.urlOzon + self.API.OzonRequestURL['product-import-check'],
+                body=self.API.createRequest(
+                    task_id=task_id_list['task_id']
+                )
+            ).json()['result']
 
     def outToExcel(self, out, path):
         # Проверяем тип данных out
@@ -968,7 +980,7 @@ class SexOptovik_ozon(main.Functions):
         print(f'\nПриветствую Вас, {self.config.shopName}\n')
         try:
             self.importCredentials()
-            # self.downloadProducts()
+            self.downloadProducts()
         except src.ExceptionService.Exceptions.CustomError as e:
             print('[!] Ошибка.\nПодробнее: {0}'.format(e))
             sys.exit(1)
@@ -982,20 +994,36 @@ class SexOptovik_ozon(main.Functions):
                                         loading_type='manual')
 
         items_by_category = self.get_categories('spread', exist_prods=existProducts,
-                                                category_list_ozon=category_list_ozon)
+                                                category_list_ozon=category_list_ozon,
+                                                changing=True)
 
         self.parse_products(items_by_category,
                             category_list_ozon,
                             df=df)
 
-    def get_categories(self, _type, exist_prods, category_list_ozon=None):
+    def get_categories(self, _type, exist_prods, category_list_ozon=None, changing=False):
         if _type == 'manual':
             return self.get_cats_manual(category_list_ozon=category_list_ozon,
                                         exist_prods=exist_prods)
         elif _type == 'spread':
-            return self.get_cats_from_spread(exist_prods=exist_prods)
+            return self.get_cats_from_spread(exist_prods=exist_prods, changing=changing)
 
-    def get_cats_from_spread(self, exist_prods) -> dict:
+    def load_annotation_manual(self, path, encoding='cp1251', sep=';'):
+        df = pd.read_csv(path, encoding=encoding, sep=sep)
+        return df
+
+    def load_annotation_spread(self):
+        return self.load_database_product(loading_type='api',
+                                          range_header='all-prod-extra-description!A1:Z',
+                                          columns=['id', 'annotation'])
+
+    def get_annotation(self, _type):
+        if _type == 'manual':
+            return self.load_annotation_manual(r'SexOptovik/all_prod_d33_.csv')
+        elif _type == 'spread':
+            return self.load_annotation_spread()
+
+    def get_cats_from_spread(self, exist_prods, changing) -> dict:
         categories = self.loadFromSpread(spreadID='1seOHrVIUluOxK3yXz3lQSHtZ84FyrGr-i0kQMAZ8BIE',
                                          range_header='cats!A1:Z',
                                          column=['ID', 'CATEGORY']
@@ -1003,7 +1031,9 @@ class SexOptovik_ozon(main.Functions):
 
         items_by_category = defaultdict(list)
         for i in range(len(categories[1])):
-            if categories[0][i] not in exist_prods:
+            if categories[0][i] not in exist_prods and not changing:
+                items_by_category[categories[1][i]].append(categories[0][i])
+            elif categories[0][i] in exist_prods and changing:
                 items_by_category[categories[1][i]].append(categories[0][i])
         return items_by_category
 
@@ -1011,14 +1041,14 @@ class SexOptovik_ozon(main.Functions):
         return self.checkNewProduct(category_list_ozon,
                                     exist_products=exist_prods)
 
-    def load_database_product(self, columns, loading_type='manual'):
+    def load_database_product(self, columns, loading_type='manual', range_header='all-prod-info!A1:Z'):
         if loading_type == 'manual':
             df = pd.read_csv('SexOptovik/all_prod_info.csv', sep=';', encoding='cp1251')
             return df
         elif loading_type == 'api':
             return pd.DataFrame(self.loadFromSpread(spreadID='1nImAUNxnY_rw1jkut-HihxB0rUFPDipJFgeCfwXTCSg',
                                                     column=columns,
-                                                    range_header='all-prod-info!A1:Z')
+                                                    range_header=range_header)
                                 )
 
     def getExistArticuls(self) -> set:
@@ -1051,9 +1081,9 @@ class SexOptovik_ozon(main.Functions):
         """
         if not isinstance(attributes, dict):
             raise src.ExceptionService.Exceptions.CustomError(message=
-                                                              "Wrong attribute type:\nGot:{0}\nExpected{1}".format(
-                                                                  type(attributes), type(dict)),
-                                                              error_type=TypeError)
+            "Wrong attribute type:\nGot:{0}\nExpected{1}".format(
+                type(attributes), type(dict)),
+                error_type=TypeError)
         else:
             pass
 
