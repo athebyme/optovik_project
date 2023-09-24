@@ -49,7 +49,7 @@
 1. Клонируйте репозиторий:
 
    ```bash
-   git clone [https://github.com/athebyme/project](https://github.com/athebyme/optovik_project).git
+   git clone https://github.com/athebyme/optovik_project.git
 
 Установите необходимые зависимости:
 
