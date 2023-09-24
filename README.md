@@ -50,3 +50,12 @@
 
    ```bash
    git clone https://github.com/username/project.git
+
+Установите необходимые зависимости:
+
+bash
+Copy code
+pip install -r requirements.txt
+Следуйте инструкциям в соответствующих директориях (SexOptovik_wb и ozon-dev) для запуска парсеров.
+
+
