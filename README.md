@@ -1,6 +1,6 @@
 # Коммерческий проект парсеров товаров
 
-![Project Logo](images/logo.png)
+![Project Logo](images/logo.jpg)
 
 ---
 
