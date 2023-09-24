@@ -49,7 +49,7 @@
 1. Клонируйте репозиторий:
 
    ```bash
-   git clone https://github.com/username/project.git
+   git clone [https://github.com/athebyme/project](https://github.com/athebyme/optovik_project).git
 
 Установите необходимые зависимости:
 
@@ -60,9 +60,9 @@ pip install -r requirements.txt
 
 
 
-_Автор_
+__Автор__
 Брюхов Антон (athebyme/emybehta)
-_Контакты_
+__Контакты__
 Если у вас есть вопросы или предложения, пожалуйста, свяжитесь с нами:
 
 Email: ab@athebyme.ru
