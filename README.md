@@ -1,6 +1,6 @@
 # Коммерческий проект парсеров товаров
 
-![Project Logo](logo.png)
+![Project Logo](images/logo.png)
 
 ---
 
@@ -59,3 +59,10 @@ pip install -r requirements.txt
 Следуйте инструкциям в соответствующих директориях (SexOptovik_wb и ozon-dev) для запуска парсеров.
 
 
+
+_Автор_
+Брюхов Антон (athebyme/emybehta)
+_Контакты_
+Если у вас есть вопросы или предложения, пожалуйста, свяжитесь с нами:
+
+Email: ab@athebyme.ru
